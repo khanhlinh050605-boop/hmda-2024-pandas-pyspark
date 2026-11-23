@@ -264,7 +264,7 @@ class SparkEngine(Engine):
         if master.exists():
             shutil.rmtree(master)
         master.parent.mkdir(parents=True, exist_ok=True)
-        # Reduce the 277 input partitions without a full-row shuffle.  The
+        # Reduce the input partitions (one per source Parquet part) without a full-row shuffle.  The
         # broadcast duplicate join preserves the source partitioning, so a
         # narrow coalesce is sufficient for the requested file count.
         out.coalesce(int(cfg["spark"]["master_files"])).write.mode("overwrite").parquet(master.as_posix())
