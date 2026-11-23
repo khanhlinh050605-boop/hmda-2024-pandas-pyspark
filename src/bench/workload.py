@@ -1,10 +1,10 @@
-"""Workload của benchmark: theo lender -> số bản ghi, mean(loan_amount), denial rate (n_denied / n_decided).
+"""Benchmark workload: by lender -> record count, mean(loan_amount), denial rate (n_denied / n_decided).
 
-Workload thứ hai "median_by_state": theo state_code -> số bản ghi + trung vị CHÍNH XÁC của loan_amount (nội suy tuyến tính;
-Pandas groupby.median, Spark percentile(.,0.5) chính xác, KHÔNG dùng percentile_approx). Chuỗi "NA" là một nhóm riêng.
+Second workload "median_by_state": by state_code -> record count + EXACT median of loan_amount (linear interpolation;
+Pandas groupby.median, exact Spark percentile(.,0.5), NOT percentile_approx). The string "NA" is a separate group.
 
-Cùng một phép tính, viết riêng cho từng engine. Khoá lấy mẫu `sample_u` (xem pandas_engine.sample_key) làm
-các mẫu 25% / 50% / 100% LỒNG NHAU và giống hệt nhau ở hai engine.
+The same computation, written separately for each engine. The sampling key `sample_u` (see pandas_engine.sample_key) makes
+the 25% / 50% / 100% samples NESTED and identical in both engines.
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ def spark_workload(df):
            .agg(F.count(F.lit(1)).alias("n_records"), F.avg("loan_amount").alias("mean_loan_amount"),
                 F.sum("is_denied").alias("n_denied"), F.sum("is_decided").alias("n_decided"))
            .withColumn("denial_rate", F.col("n_denied") / F.col("n_decided")))
-    return res.collect()          # action: buộc Spark thực thi
+    return res.collect()          # action: forces Spark to execute
 
 
 def spark_rows_to_frame(rows) -> pd.DataFrame:
@@ -50,7 +50,7 @@ def equivalent(a: pd.DataFrame, b: pd.DataFrame, rtol=1e-9, atol=1e-9) -> dict:
     return out
 
 
-# ------------------------------------------------------------------ workload 2: trung vị loan_amount theo state_code
+# ------------------------------------------------------------------ workload 2: median loan_amount by state_code
 STATE_COLS = ["state_code", "loan_amount"]
 
 
@@ -71,9 +71,9 @@ def spark_state_workload(df):
 
 
 def equivalent_state(a: pd.DataFrame, b: pd.DataFrame, rtol=1e-9, atol=1e-9) -> dict:
-    """Cổng tương đương: state_code khớp chuỗi tuyệt đối, n_records khớp số nguyên tuyệt đối,
-    |median_a - median_b| <= atol + rtol*|median_b|. Tên khoá `same_lenders`/`counts_equal`/`floats_close` dùng chung với
-    workload 1 (ở đây `same_lenders` = cùng tập nhóm state_code)."""
+    """Equivalence gate: state_code must match exactly as strings, n_records must match exactly as integers,
+    |median_a - median_b| <= atol + rtol*|median_b|. The keys `same_lenders`/`counts_equal`/`floats_close` are shared with
+    workload 1 (here `same_lenders` = same set of state_code groups)."""
     a = a.sort_values("state_code", kind="mergesort").reset_index(drop=True)
     b = b.sort_values("state_code", kind="mergesort").reset_index(drop=True)
     out = {"same_lenders": bool(len(a) == len(b) and (a["state_code"].astype(str).values == b["state_code"].astype(str).values).all())}
@@ -86,7 +86,7 @@ def equivalent_state(a: pd.DataFrame, b: pd.DataFrame, rtol=1e-9, atol=1e-9) -> 
     return out
 
 
-# ------------------------------------------------------------------ đăng ký workload
+# ------------------------------------------------------------------ workload registry
 WORKLOADS = {
     "lender_groupby": {"cols": COLS, "pandas": pandas_workload, "spark": spark_workload, "equiv": equivalent},
     "median_by_state": {"cols": STATE_COLS, "pandas": pandas_state_workload, "spark": spark_state_workload,

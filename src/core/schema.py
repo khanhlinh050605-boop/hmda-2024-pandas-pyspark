@@ -1,8 +1,8 @@
-"""Schema: cột đọc từ LAR, mã đặc biệt, và hàng rào chặn biến nhân khẩu học / sau quyết định.
+"""Schema: columns read from the LAR, special codes, and the guard that blocks demographic / post-decision variables.
 
-QUY TẮC (đã chốt): code KHÔNG đọc applicant_*, co_applicant_*, derived_ethnicity/race/sex,
-tract_minority_*, và các trường sau quyết định (denial_reason_*, hoepa_status, purchaser_type...).
-Mọi nơi đọc cột từ nguồn đều đi qua `resolve_columns`, nên hàng rào này luôn được áp dụng.
+RULE (final): the code NEVER reads applicant_*, co_applicant_*, derived_ethnicity/race/sex,
+tract_minority_*, or post-decision fields (denial_reason_*, hoepa_status, purchaser_type...).
+Every place that reads source columns goes through `resolve_columns`, so this guard is always applied.
 """
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import re
 MISSING = "__MISSING__"
 SEP = "|"
 
-# --- cột đọc từ LAR (tên chuẩn) -------------------------------------------------
+# --- columns read from the LAR (canonical names) -------------------------------------------------
 CATEGORICAL_RAW = [
     "lei", "action_taken", "state_code", "loan_type", "loan_purpose", "lien_status",
     "occupancy_type", "construction_method", "total_units",
@@ -29,9 +29,9 @@ NUMERIC_RAW = {
     "interest_rate": "interest_rate",
     "rate_spread": "rate_spread",
     "total_loan_costs": "total_loan_costs",
-    "cltv": "combined_loan_to_value_ratio",   # tên chuẩn -> tên gốc trong LAR
+    "cltv": "combined_loan_to_value_ratio",   # canonical name -> original name in the LAR
 }
-DTI_RAW = "debt_to_income_ratio"              # dạng band chuỗi hoặc số
+DTI_RAW = "debt_to_income_ratio"              # string band or number
 
 # Allowed non-numeric tokens in the public 2024 LAR/FIG.  Loan amount is always
 # numeric.  Income permits NA but not Exempt.  The remaining reported numeric
@@ -51,7 +51,7 @@ FIELD_SPECIAL_VALUES = {
 
 READ_COLUMNS = CATEGORICAL_RAW + list(NUMERIC_RAW.values()) + [DTI_RAW]
 
-# --- hàng rào ---------------------------------------------------------------------
+# --- guard ---------------------------------------------------------------------
 FORBIDDEN_RE = re.compile(
     r"^(applicant_|co_applicant_|derived_(ethnicity|race|sex)|denial_reason|tract_minority"
     r"|hoepa_status|purchaser_type|aus_|applicant$)"
@@ -59,18 +59,18 @@ FORBIDDEN_RE = re.compile(
 
 
 def norm_name(name: str) -> str:
-    """'open-end_line_of_credit' và 'open_end_line_of_credit' cùng một tên chuẩn."""
+    """'open-end_line_of_credit' and 'open_end_line_of_credit' map to the same canonical name."""
     return name.strip().lower().replace("-", "_")
 
 
 def assert_no_forbidden(columns) -> None:
     bad = [c for c in columns if FORBIDDEN_RE.search(norm_name(c))]
     if bad:
-        raise RuntimeError(f"Cột bị cấm (nhân khẩu học / sau quyết định) bị yêu cầu đọc: {bad}")
+        raise RuntimeError(f"Forbidden column (demographic / post-decision) requested: {bad}")
 
 
 def resolve_columns(available) -> dict[str, str]:
-    """Trả về {tên_chuẩn: tên_thực_trong_file} cho đúng các cột cần đọc. Thiếu cột -> báo lỗi rõ."""
+    """Return {canonical_name: actual_name_in_file} for exactly the columns to read. A missing column raises a clear error."""
     assert_no_forbidden(READ_COLUMNS)
     lut = {norm_name(c): c for c in available}
     out, missing = {}, []
@@ -80,12 +80,12 @@ def resolve_columns(available) -> dict[str, str]:
         else:
             missing.append(want)
     if missing:
-        raise KeyError(f"LAR thiếu cột bắt buộc: {missing}")
+        raise KeyError(f"LAR is missing required columns: {missing}")
     assert_no_forbidden(out.values())
     return out
 
 
-# --- trạng thái của giá trị số ------------------------------------------------------
+# --- status of numeric values ------------------------------------------------------
 STATUS_VALUE = "VALUE"
 STATUS_ORDER = ["VALUE", "NA", "EXEMPT", "EMPTY", "UNPARSABLE"]
 NUM_RE = r"^-?[0-9]+(\.[0-9]+)?$"

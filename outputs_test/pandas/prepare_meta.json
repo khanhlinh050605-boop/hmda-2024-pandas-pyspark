@@ -1,0 +1,20 @@
+{
+  "engine": "pandas",
+  "n_files": 6,
+  "n_rows": 120600,
+  "rows_per_part": {
+    "0": 20100,
+    "1": 20100,
+    "2": 20100,
+    "3": 20100,
+    "4": 20100,
+    "5": 20100
+  },
+  "n_dup_rows": 1200,
+  "n_excess_dup_rows": 600,
+  "dup_columns_n": 51,
+  "lenders_with_exempt_values": 6,
+  "seconds": 3.3,
+  "pandas": "2.3.3",
+  "pyarrow": "26.0.1"
+}

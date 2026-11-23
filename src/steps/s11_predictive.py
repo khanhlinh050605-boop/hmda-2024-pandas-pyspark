@@ -1,16 +1,16 @@
-"""Bước 11 - Predictive extension (proposal mục 8; đề bài mục 4).
+"""Step 11 - Predictive extension (proposal section 8; brief section 4).
 
-MỤC TIÊU VÀ MỤC ĐÍCH SỬ DỤNG
-  Ước lượng xác suất bị từ chối (action_taken = 3) trong các hồ sơ ĐÃ CÓ QUYẾT ĐỊNH (1,2,3), không thuộc diện exempt,
-  mục đích tiêu dùng, vay đóng (closed-end), không phải reverse mortgage. Dùng để XẾP HẠNG RỦI RO phân tích
-  (analytical risk ranking) và để đo phần phân tán giữa các lender còn lại sau khi tính cơ cấu hồ sơ.
-  KHÔNG phải quy tắc quyết định cho vay, KHÔNG phải khẳng định nhân quả.
-BIẾN ĐẦU VÀO (phân tích hồi cứu; không mặc định có đủ tại intake): loại khoản vay, mục đích, lien, occupancy, construction, số căn,
-  DTI band, log loan amount, log income, CLTV, thời hạn, log property value, state, hồ sơ lender (quy mô, cơ cấu sản phẩm).
-KHÔNG DÙNG: tuổi/giới/chủng tộc/dân tộc (không bao giờ đọc), và trường sau quyết định (denial_reason, interest_rate,
-  rate_spread, loan costs, purchaser_type, hoepa_status). Biến "ghi khác nhau theo outcome" bị loại (kiểm tra rò rỉ).
-ĐÁNH GIÁ: tách train/val/test THEO LENDER (đo khả năng tổng quát hoá sang lender chưa thấy);
-  ROC-AUC, average precision (AP), log-loss, Brier, calibration; so sánh LR với gradient boosting và baseline chỉ-sản-phẩm.
+TARGET AND INTENDED USE
+  Estimate the probability of denial (action_taken = 3) among DECIDED applications (1,2,3), excluding exempt records,
+  consumer purpose, closed-end loans, not reverse mortgages. Used for an analytical RISK RANKING
+  and to measure the dispersion between lenders that remains after accounting for application mix.
+  It is NOT a lending decision rule and NOT a causal claim.
+INPUT VARIABLES (retrospective analysis; not assumed to be all available at intake): loan type, purpose, lien, occupancy, construction, number of units,
+  DTI band, log loan amount, log income, CLTV, term, log property value, state, lender profile (size, product mix).
+NOT USED: age/sex/race/ethnicity (never read), and post-decision fields (denial_reason, interest_rate,
+  rate_spread, loan costs, purchaser_type, hoepa_status). Variables whose "recording differs by outcome" are dropped (leakage check).
+EVALUATION: train/val/test split BY LENDER (measures generalisation to unseen lenders);
+  ROC-AUC, average precision (AP), log-loss, Brier, calibration; LR is compared with gradient boosting and a product-only baseline.
 """
 from __future__ import annotations
 
@@ -146,13 +146,13 @@ def run(ctx):
     base_cont = [c for c in base_cont if c not in drop]
     profile_cols = list(prof.columns)
     cont = base_cont + profile_cols
-    log.info("[s11] leakage audit: loại %s", sorted(drop))
+    log.info("[s11] leakage audit: dropped %s", sorted(drop))
 
     sp = df.groupby("split").agg(rows=("y", "size"), lenders=("lei", "nunique"), denial_rate=("y", "mean")).reset_index()
     ctx.save_table("pred_split_summary", sp)
     tr, va, te = (df[df["split"] == s] for s in ("train", "val", "test"))
     if min(len(tr), len(va), len(te)) == 0 or tr["y"].nunique() < 2 or te["y"].nunique() < 2:
-        raise RuntimeError("Tách theo lender cho tập rỗng hoặc một lớp: giảm min_lender_decided hoặc kiểm tra dữ liệu.")
+        raise RuntimeError("The lender-level split produced an empty or single-class set: lower min_lender_decided or check the data.")
     feats = cat + cont
     no_profile_feats = cat + base_cont
     Xtr, Xva, Xte = tr[feats], va[feats], te[feats]
@@ -218,7 +218,7 @@ def run(ctx):
              Xtr, Xva, feats)
     ctx.save_table("pred_model_selection", pd.DataFrame(sel_rows))
 
-    # ---- đánh giá trên TEST (lender chưa thấy)
+    # ---- evaluation on TEST (unseen lenders)
     prior = float(ytr.mean())
     out, calib, roc_pts, preds = [], [], [], {"y_true": yte}
     base_ll = log_loss(yte, np.full(len(yte), prior), labels=[0, 1])
@@ -247,9 +247,9 @@ def run(ctx):
     ii = np.random.default_rng(seed).choice(len(yte), n_s, replace=False)
     pd.DataFrame({k: v[ii] for k, v in preds.items()}).to_csv(ctx.tab_dir / "pred_test_sample.csv", index=False)
 
-    # ---- ablation: mô hình có đang khai thác việc trường được ghi hay không?  Cùng tập test hoàn chỉnh (không thiếu
-    # CLTV / property value / income / DTI band), so mô hình đã huấn luyện trên toàn bộ với mô hình huấn luyện lại chỉ trên
-    # hàng hoàn chỉnh.  Nếu AUC giảm mạnh, một phần sức dự đoán đến từ việc trường bị thiếu chứ không phải từ giá trị.
+    # ---- ablation: is the model exploiting whether a field was recorded?  On the same complete test set (no missing
+    # CLTV / property value / income / DTI band), compare the model trained on all rows with a model retrained only on
+    # complete rows.  If AUC drops sharply, part of the predictive power comes from missingness rather than from the values.
     from sklearn.base import clone
 
     def _complete(d):
@@ -275,7 +275,7 @@ def run(ctx):
         "model", "complete_test_rows", "complete_train_rows", "share_of_test_complete", "base_rate_complete_test",
         "auc_trained_on_all_rows", "auc_trained_on_complete_rows", "auc_all_test_rows"]))
 
-    # ---- tầm quan trọng (hoán vị) của mô hình gradient boosting
+    # ---- permutation importance of the gradient-boosting model
     gb = models["Gradient boosting"]
     ns = min(len(te), 40_000)
     ti = np.random.default_rng(seed + 1).choice(len(te), ns, replace=False)
@@ -283,7 +283,7 @@ def run(ctx):
     ctx.save_table("pred_importance", pd.DataFrame({"feature": feats, "auc_drop_mean": pi.importances_mean,
                                                     "auc_drop_std": pi.importances_std}).sort_values("auc_drop_mean", ascending=False))
 
-    # ---- lender bất thường sau khi tính cơ cấu hồ sơ: O/E theo xác suất dự đoán (chỉ lender test)
+    # ---- unusual lenders after accounting for application mix: O/E from predicted probabilities (test lenders only)
     pg = preds["Gradient boosting"]
     lt = pd.DataFrame({"lei": te["lei"].values, "y": yte, "p": pg}).groupby("lei").agg(
         n_decided=("y", "size"), observed=("y", "sum"), expected=("p", "sum")).reset_index()

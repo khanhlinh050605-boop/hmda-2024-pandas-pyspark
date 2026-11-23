@@ -1,12 +1,12 @@
-"""Bước 01 - Chuẩn bị dữ liệu (data engineering): mỗi engine đọc LAR thô và tạo master Parquet RIÊNG.
+"""Step 01 - Data preparation (data engineering): each engine reads the raw LAR and builds its OWN Parquet master.
 
-Quy tắc làm sạch (xem cleaning_rules.md) giống nhau ở hai engine:
-  - đọc mọi cột dưới dạng chuỗi; ép kiểu số tường minh;
-  - nhận diện NA / Exempt theo đúng từng trường; 1111 / 8888 / 9999 chỉ là
-    mã đặc biệt ở các trường mà tài liệu 2024 quy định như vậy (ví dụ 1111
-    ở ba cờ categorical), không áp dụng một quy tắc toàn cục;
-  - giá trị ngoài miền hợp lý được GIỮ NGUYÊN và gắn cờ v_<field>=0 (không xoá);
-  - không điền 0 thay thế giá trị thiếu; tỷ số phái sinh chỉ tính khi đủ điều kiện, còn lại là null.
+The cleaning rules (see cleaning_rules.md) are identical in both engines:
+  - read every column as a string; cast to numbers explicitly;
+  - recognise NA / Exempt field by field; 1111 / 8888 / 9999 are special
+    codes only on fields where the 2024 documentation defines them as such (for example 1111
+    on the three categorical flags), not as a global rule;
+  - values outside the plausible domain are KEPT and flagged v_<field>=0 (not deleted);
+  - missing values are not zero-filled; derived ratios are computed only when eligible and are null otherwise.
 """
 from __future__ import annotations
 

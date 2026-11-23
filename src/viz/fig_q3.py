@@ -1,4 +1,4 @@
-"""Hình 3 - Q3: denial rate theo band của income, loan amount, LTI, DTI, CLTV + Cramér's V."""
+"""Figure 3 - Q3: denial rate by band of income, loan amount, LTI, DTI, CLTV + Cramér's V."""
 from __future__ import annotations
 
 import numpy as np
@@ -28,7 +28,7 @@ def build(cns, T, out, cfg):
         x = np.arange(len(t))
         st = t["is_status_band"].to_numpy() == 1
         small = (t["n_decided"].to_numpy() < cfg["thresholds"]["small_cell"])
-        ok = ~small   # nhóm n nhỏ: chỉ marker rỗng, không vẽ CI
+        ok = ~small   # small-n groups: hollow marker only, no CI
         ax.vlines(x[ok], t["denial_ci_lo"][ok], t["denial_ci_hi"][ok], color=C_MAIN, lw=0.8)
         ax.plot(x[~st], t["denial_rate"][~st], "-", color=C_MAIN, lw=0.8)
         valid_pt = ~st & ok

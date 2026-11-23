@@ -1,10 +1,10 @@
-"""Bước 06 - RQ Q3: income, loan amount, loan-to-income, DTI (và CLTV, property value) liên hệ thế nào với denial?
+"""Step 06 - RQ Q3: how are income, loan amount, loan-to-income, DTI (and CLTV, property value) associated with denial?
 
-Mỗi biến: một khối đếm [band x loan_type x purpose x lien] cho hồ sơ decided. Từ đó:
-  - denial rate theo band (Wilson), O/E theo band (đã chuẩn hoá cơ cấu sản phẩm),
-  - Cramér's V (chỉ band hợp lệ) tổng thể và trong từng phân khúc lớn nhất,
-  - tỷ lệ ghi NA/Exempt/ngoài miền theo outcome (có ghi khác nhau giữa denied và approved không).
-Chỉ là liên hệ (association); số lượng lớn làm mọi chi-bình-phương 'có ý nghĩa', nên dùng độ lớn V để đọc.
+For each variable: one count block [band x loan_type x purpose x lien] for decided applications. From it:
+  - denial rate by band (Wilson), O/E by band (product-mix standardised),
+  - Cramér's V (valid bands only) overall and within each of the largest segments,
+  - share recorded as NA/Exempt/out-of-domain by outcome (is reporting different between denied and approved).
+Association only; with huge n every chi-square is 'significant', so read the effect size V.
 """
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ def run(ctx):
             tops = top_segments(aggregate(cube, FINE), cfg["thresholds"]["top_segments"])
         order = defs.order_of(band_col)
         valid = defs.valid_labels(band_col)
-        # --- bảng theo band
+        # --- table by band
         t = aggregate(cube, [band_col], cols=("n_rows", "n_decided", "n_denied"))
         t = with_rates(t, small, orig=False)
         t["share_of_decided"] = t["n_decided"] / t["n_decided"].sum()
@@ -69,14 +69,14 @@ def run(ctx):
         row["rate_range_pp"] = (row["rate_max_valid_band"] - row["rate_min_valid_band"]) * 100 if len(vt) else np.nan
         row["spearman_band_order_vs_rate"] = ST.spearman(np.arange(len(vt)), vt["denial_rate"].values)[0] if len(vt) >= 3 else np.nan
         row["oe_range_valid_bands"] = float(vt["oe_ratio"].max() - vt["oe_ratio"].min()) if len(vt) else np.nan
-        # trong từng phân khúc lớn
+        # within each large segment
         cube["segment"] = seg_label(cube)
         for sg in tops:
             vs = ST.cramers_v(_v_table(cube[cube["segment"] == sg], band_col, valid))
             row[f"V_in_{sg}"] = vs["v"]
         assoc.append(row)
 
-        # --- trạng thái ghi theo outcome
+        # --- recording status by outcome
         for _, r in aggregate(cube, [band_col], cols=("n_decided", "n_denied")).iterrows():
             if defs.is_status_band(r[band_col]):
                 status_rows.append({"variable": var, "status_band": r[band_col], "n_decided": r["n_decided"],
@@ -94,7 +94,7 @@ def run(ctx):
         st["gap_denied_minus_approved"] = st["share_of_denied"] - st["share_of_approved"]
     ctx.save_table("q3_status_by_outcome", st)
 
-    # --- quan hệ loan amount ~ income (log-log)
+    # --- loan amount ~ income relationship (log-log)
     cols = ["log_loan_amount", "log_income"]
     rel = []
     for scope, extra in (("all applications", "is_app"), ("originated", "is_orig")):
@@ -110,7 +110,7 @@ def run(ctx):
     p = raw_pct(ctx, "q3_loan_by_income_band", ["income_band"], "loan_amount", PROBS_DESC, where=["v_loan_amount"])
     ctx.save_table("q3_loan_by_income_band", sort_by_order(p, "income_band", defs.order_of("income_band")))
 
-    # --- biến liên tục theo outcome (decided)
+    # --- continuous variables by outcome (decided)
     for v, flag in CONT:
         d = raw_pct(ctx, f"q3_cont_by_outcome_{v}", ["is_denied"], v, PROBS_DESC, where=["is_decided", flag])
         d["outcome"] = np.where(d["is_denied"] == "1", "denied", "approved")

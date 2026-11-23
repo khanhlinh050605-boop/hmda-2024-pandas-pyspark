@@ -1,10 +1,10 @@
-"""Bước 10 - Benchmark hiệu năng và khả năng mở rộng Pandas vs PySpark (đề bài 3.5).
+"""Step 10 - Performance and scalability benchmark, Pandas vs PySpark (brief 3.5).
 
-Workload: theo lender -> số bản ghi, mean(loan_amount), denial rate. Mẫu lồng nhau 25/50/100% (khoá sample_u, giống
-hệt ở hai engine). Kịch bản CHÍNH = chỉ tính toán: Pandas đã nạp sẵn, Spark đã cache + count trước khi bấm giờ,
-Spark bị buộc thực thi bằng action (collect). Kịch bản PHỤ = đọc + tính (báo cáo riêng).
-Thứ tự các ô (engine x tỷ lệ) được xoay có seed trong từng lần lặp; có warm-up toàn cục; báo cáo trung vị/min/max/IQR.
-Bộ nhớ đỉnh và chi phí khởi tạo đo ở TIẾN TRÌNH MỚI (src/bench/probe.py).
+Workload: by lender -> record count, mean(loan_amount), denial rate. Nested 25/50/100% samples (key sample_u, identical
+in both engines). MAIN scenario = compute only: Pandas already loaded, Spark cached + counted before timing,
+Spark forced to execute with an action (collect). SECONDARY scenario = read + compute (reported separately).
+The order of the cells (engine x fraction) is rotated with a seed within each repeat; there is a global warm-up; median/min/max/IQR are reported.
+Peak memory and start-up cost are measured in a FRESH PROCESS (src/bench/probe.py).
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ def _probe(cfg, *args) -> dict:
     r = subprocess.run(cmd, cwd=str(cfg.root), capture_output=True, text=True)
     line = [ln for ln in r.stdout.splitlines() if ln.startswith("{")]
     if r.returncode != 0 or not line:
-        raise RuntimeError(f"probe lỗi: {' '.join(args)}\n{r.stderr[-800:]}")
+        raise RuntimeError(f"probe failed: {' '.join(args)}\n{r.stderr[-800:]}")
     return json.loads(line[-1])
 
 
@@ -56,8 +56,8 @@ TIE = "Tie / inconclusive"
 
 
 def decide_faster(a, b) -> str:
-    """Quy tắc của nhóm: chỉ kết luận engine nhanh hơn khi khoảng min-max của hai engine KHÔNG chồng nhau
-    và cả hai ô đều không bị gắn cờ không ổn định (max/min > ngưỡng). Không bao giờ quyết định chỉ bằng trung vị."""
+    """Group rule: conclude that an engine is faster only when the min-max ranges of the two engines do NOT overlap
+    and neither cell is flagged unstable (max/min > threshold). Never decide by the median alone."""
     if bool(a["unstable"]) or bool(b["unstable"]):
         return TIE
     if a["max_s"] < b["min_s"]:
@@ -75,9 +75,9 @@ def _stats(x):
 
 
 def _append_correctness_rows(cfg, wl_tables) -> None:
-    """Ghi đầu ra workload `median_by_state` của từng engine ra CSV và so sánh bằng chính compare_tables của bước 09
-    (rtol = atol = 1e-9, state_code là khoá chuỗi); thêm các dòng kind="benchmark" vào correctness_detail.csv.
-    Chạy lại bước 09 sẽ ghi đè file này -> chạy lại bước 10 sau đó."""
+    """Write the `median_by_state` workload output of each engine to CSV and compare them with the step-09 compare_tables
+    (rtol = atol = 1e-9, state_code is a string key); add kind="benchmark" rows to correctness_detail.csv.
+    Re-running step 09 overwrites this file -> re-run step 10 afterwards."""
     from .s09_correctness import _read, compare_tables
 
     base = cfg.out_dir / "compare" / "benchmark_tables"
@@ -100,7 +100,7 @@ def _append_correctness_rows(cfg, wl_tables) -> None:
     bad = [r["table"] for r in rows if not r["agree"]]
     if bad:
         raise RuntimeError(f"Workload output tables differ between engines: {bad}")
-    log.info("[s10] %d bảng đầu ra median_by_state khớp Pandas-Spark (đã thêm vào correctness_detail.csv)", len(rows))
+    log.info("[s10] %d median_by_state output tables agree between Pandas and Spark (added to correctness_detail.csv)", len(rows))
 
 
 def run(ctx):
@@ -133,17 +133,17 @@ def run(ctx):
     sdf = spark.read.parquet(benchmark_master.as_posix())
 
     timings, equiv, plans = [], [], []
-    wl_tables = {}                       # (workload, scenario, engine, fraction) -> bảng đầu ra (rep 0), cho đối chiếu correctness
+    wl_tables = {}                       # (workload, scenario, engine, fraction) -> output table (rep 0), for the correctness comparison
     n_rows = {}
     seed = int(cfg["project"]["seed"])
-    # Mỗi workload chạy trọn giao thức riêng (warm-up, repeats, xoay ô có seed). Workload 1 dùng đúng seed cũ; workload 2 seed + 1,
-    # nên chuỗi xoay của workload 1 không đổi.
+    # Each workload runs its own full protocol (warm-up, repeats, seeded cell rotation). Workload 1 uses the original seed; workload 2 uses seed + 1,
+    # so the rotation sequence of workload 1 is unchanged.
     for wi, (wname, wl) in enumerate(WORKLOADS.items()):
         wcols, p_fn, s_fn, eq_fn = wl["cols"], wl["pandas"], wl["spark"], wl["equiv"]
         rng = np.random.default_rng(seed + wi)
         log.info("[s10] ===== workload %s =====", wname)
 
-        # ---- nạp sẵn dữ liệu (NGOÀI thời gian đo của kịch bản chính)
+        # ---- preload the data (OUTSIDE the timed region of the main scenario)
         pdata = pe.read_columns(wcols + ["sample_u"])
         pu = pdata.pop("sample_u").to_numpy()
         p_sub = {f: pdata[pu < f] for f in fracs}
@@ -151,7 +151,7 @@ def run(ctx):
         for f in fracs:
             s_sub[f] = sdf.filter(F.col("sample_u") < f).select(*wcols).cache()
             n_rows[f] = int(s_sub[f].count())
-            assert n_rows[f] == len(p_sub[f]), f"mẫu {f}: Pandas {len(p_sub[f])} dòng != Spark {n_rows[f]} dòng"
+            assert n_rows[f] == len(p_sub[f]), f"sample {f}: Pandas {len(p_sub[f])} rows != Spark {n_rows[f]} rows"
 
         def run_cell(engine, f):
             t = time.perf_counter()
@@ -165,7 +165,7 @@ def run(ctx):
                 run_cell(*c)
         timings_wl = []
         results = {}
-        log.info("[s10] đo %d lần lặp x %d ô", bc["repeats"], len(cells))
+        log.info("[s10] timing %d repeats x %d cells", bc["repeats"], len(cells))
         for rep in range(bc["repeats"]):
             order = rng.permutation(len(cells))
             for i in order:
@@ -191,12 +191,12 @@ def run(ctx):
         spark.catalog.clearCache()
         del p_sub, pdata, pu
 
-        # ---- kịch bản phụ: đọc + tính
+        # ---- secondary scenario: read + compute
         if bc.get("read_compute", True):
             read_results = {}
 
             def read_compute_cell(e, f, capture_plan=False):
-                """Đúng đường đi của vòng đo (dùng chung cho warm-up và đo)."""
+                """Exactly the code path of the timed loop (shared by warm-up and timing)."""
                 if e == "pandas":
                     d = pe.read_columns(wcols + ["sample_u"])
                     uu = d.pop("sample_u").to_numpy()
@@ -211,7 +211,7 @@ def run(ctx):
                         raise RuntimeError("Spark read+compute physical plan does not show a Parquet FileScan.")
                 return spark_rows_to_frame(res)
 
-            # warm-up riêng cho read_compute (không ghi vào timings, không dùng rng của vòng đo)
+            # separate warm-up for read_compute (not recorded in timings, does not use the rng of the timed loop)
             log.info("[s10] warm-up read_compute x%d", bc["warmups"])
             for _ in range(bc["warmups"]):
                 for e, f in cells:
@@ -239,7 +239,7 @@ def run(ctx):
     (ctx.out / "spark_read_compute_physical_plans.json").write_text(json.dumps(plans, indent=2))
     se.close()
 
-    # ---- đưa bảng đầu ra của workload 2 vào đối chiếu correctness (đầu ra mỗi engine -> compare/benchmark_tables/<engine>/)
+    # ---- feed the workload-2 output tables into the correctness comparison (each engine output -> compare/benchmark_tables/<engine>/)
     _append_correctness_rows(cfg, wl_tables)
 
     tm = pd.DataFrame(timings)
@@ -253,14 +253,14 @@ def run(ctx):
                     x = tm[(tm.workload == wname) & (tm.scenario == sc) & (tm.engine == e) & (tm.fraction == f)]["seconds"]
                     summ.append({"workload": wname, "scenario": sc, "engine": e, "fraction": f, **_stats(x)})
     summ = pd.DataFrame(summ)
-    # cờ không đơn điệu: trung vị phải không giảm khi dữ liệu tăng
+    # non-monotone flag: the median must not decrease as the data grows
     for (wname, sc, e), g in summ.groupby(["workload", "scenario", "engine"]):
         g = g.sort_values("fraction")
         non_mono = (g["median_s"].diff().dropna() < 0).any()
         summ.loc[g.index, "non_monotone"] = bool(non_mono)
     ctx.save_table("benchmark_summary", summ)
 
-    # ---- bảng theo mẫu đề bài
+    # ---- table in the format of the brief
     t3 = []
     for wname in WORKLOADS:
         for sc in summ["scenario"].unique():
@@ -277,7 +277,7 @@ def run(ctx):
                            "pandas_unstable": a["unstable"], "spark_unstable": b["unstable"]})
     ctx.save_table("table3_benchmark", pd.DataFrame(t3))
 
-    # ---- bộ nhớ đỉnh + chi phí khởi tạo (tiến trình mới)
+    # ---- peak memory + start-up cost (fresh process)
     mem = []
     for wname in WORKLOADS:
         for e in ("pandas", "spark"):
@@ -299,7 +299,7 @@ def run(ctx):
     info = _machine(cfg)
     (ctx.out / "machine_info.json").write_text(json.dumps(info, indent=2, default=str))
 
-    # ---- 5 câu diễn giải bằng số ĐÃ ĐO (đề bài 3.5C)
+    # ---- 5 interpretation answers using MEASURED numbers (brief 3.5C)
     (ctx.out / "benchmark_interpretation.md").write_text(_interpret(pd.DataFrame(t3), summ, pd.DataFrame(mem), setup_tab, pd.DataFrame(equiv)))
     log.info("[s10] xong. equivalence=%s", all(e["counts_equal"] and e["floats_close"] for e in equiv))
     return {"equivalent": all(e["counts_equal"] and e["floats_close"] for e in equiv),

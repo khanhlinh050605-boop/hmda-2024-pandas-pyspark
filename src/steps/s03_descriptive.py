@@ -1,6 +1,6 @@
-"""Bước 03 - Thống kê mô tả (đề bài 3.3A): phân bố kết quả hồ sơ, loan amount, income, lãi suất, v.v.
+"""Step 03 - Descriptive statistics (brief 3.3A): distribution of application outcomes, loan amount, income, interest rate, etc.
 
-Mỗi thống kê ghi rõ mẫu (scope) vì phân mẫu khác nhau: 'valid' = đủ điều kiện hợp lý của biến đó.
+Each statistic states its sample (scope) because samples differ: 'valid' = meets the plausibility conditions of that variable.
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ ACTION_LABEL = {"1": "Loan originated", "2": "Approved, not accepted", "3": "App
                 "4": "Withdrawn by applicant", "5": "File closed incomplete", "6": "Purchased loan",
                 "7": "Preapproval denied", "8": "Preapproval approved, not accepted"}
 
-# (biến, mẫu where, mô tả mẫu)
+# (variable, sample where-clause, sample description)
 NUMERIC = [
     ("loan_amount", ["v_loan_amount"], "all records with valid loan_amount"),
     ("income", ["v_income"], "all records with valid income"),
@@ -33,7 +33,7 @@ NUMERIC = [
 
 
 def run(ctx):
-    # --- 1. kết quả hồ sơ (action_taken)
+    # --- 1. application outcome (action_taken)
     a = raw_sum(ctx, "ds_action", ["action_taken"], [])
     total = a["n"].sum()
     a["label"] = a["action_taken"].map(ACTION_LABEL).fillna("other / unexpected code")
@@ -47,7 +47,7 @@ def run(ctx):
     piv.columns = [f"action_{c}" if c not in PRODUCT else c for c in piv.columns]
     ctx.save_table("ds_action_by_product", piv)
 
-    # --- 2. tóm tắt số: moments + percentile
+    # --- 2. numeric summary: moments + percentiles
     summ = []
     for f, where, scope in NUMERIC:
         m = raw_moments(ctx, f"ds_mom_{f}", [], [f], where=where, extremes=True)
@@ -63,13 +63,13 @@ def run(ctx):
         summ.append(row)
     ctx.save_table("ds_numeric_summary", pd.DataFrame(summ))
 
-    # --- 3. phân vị theo sản phẩm
+    # --- 3. percentiles by product
     for f, where in [("loan_amount", ["v_loan_amount"]), ("income", ["v_income"]), ("lti", ["v_lti"]),
                      ("interest_rate", ["is_orig", "v_interest_rate"])]:
         d = raw_pct(ctx, f"ds_pct_by_product_{f}", PRODUCT, f, PROBS_DESC, where=where)
         ctx.save_table(f"ds_pct_by_product_{f}", d)
 
-    # --- 4. histogram (bin log10 cho loan amount & income; bin 0.25 điểm % cho lãi suất)
+    # --- 4. histograms (log10 bins for loan amount & income; 0.25 percentage-point bins for interest rate)
     h1 = raw_sum(ctx, "ds_hist_loan_amount", ["loan_amount_lbin"], [], where=["v_loan_amount"])
     h1["bin_low"] = 10 ** (h1["loan_amount_lbin"].astype(int) / 10.0)
     h1["bin_high"] = 10 ** ((h1["loan_amount_lbin"].astype(int) + 1) / 10.0)

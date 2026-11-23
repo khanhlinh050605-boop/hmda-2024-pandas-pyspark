@@ -1,0 +1,10 @@
+field,n_parsed_numeric,n_in_range,n_out_of_range,plausible_range
+loan_amount,120600,120385,215,"{'lo': 0, 'hi': '1.0e9'}"
+income,115738,114487,1251,"{'lo': 0, 'hi': '1.0e5'}"
+property_value,117736,117736,0,"{'lo': 0, 'hi': '5.0e8'}"
+loan_term,118967,118967,0,"{'lo': 0, 'hi': 600}"
+interest_rate,60570,60570,0,"{'lo': 0, 'hi': 25}"
+rate_spread,60570,60570,0,"{'lo': -10, 'hi': 25, 'lo_inclusive': True}"
+total_loan_costs,60570,60570,0,"{'lo': 0, 'hi': '5.0e6', 'lo_inclusive': True}"
+cltv,118967,118967,0,"{'lo': 0, 'hi': 300}"
+lti,114272,114272,0,"{'lo': 0, 'hi': 100}"

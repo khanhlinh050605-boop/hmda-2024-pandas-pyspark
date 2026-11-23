@@ -1,7 +1,7 @@
-"""Bước 05 - RQ Q2: denial rate của lender phân tán thế nào; chênh lệch còn lại khi so trong cùng phân khúc sản phẩm?
+"""Step 05 - RQ Q2: how dispersed are lender denial rates; how much difference remains within the same product segment?
 
-Một khối đếm (lender x loan_type x purpose x lien) từ engine. Lender >= lender_min_decided mới được so sánh
-(bên dưới ngưỡng vẫn nằm trong bảng, gắn cờ). TS chỉ dùng để gắn tên/agency cho lender (nhãn), không đưa vào kết quả.
+One count block (lender x loan_type x purpose x lien) from the engine. Only lenders with >= lender_min_decided decisions are compared
+(lenders below the threshold stay in the table, flagged). The TS is only used to attach name/agency labels to lenders and does not enter the results.
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ def run(ctx):
     nat_rate = nat_total["n_denied"].iloc[0] / nat_total["n_decided"].iloc[0]
     tops = top_segments(nat_seg, thr["top_segments"])
 
-    # --- bảng lender
+    # --- lender table
     lend = with_rates(aggregate(cube, ["lei"]), small)
     lend["eligible"] = (lend["n_decided"] >= minn).astype(int)
     std = ST.indirect_standardise(cube, "lei", FINE, ref=nat_seg)[["lei", "expected", "oe_ratio", "oe_lo", "oe_hi"]]
@@ -44,7 +44,7 @@ def run(ctx):
     ctx.save_table("q2_lender_table", lend)
 
     el = lend[lend["eligible"] == 1]
-    # --- phân tán tổng thể
+    # --- overall dispersion
     rows = []
     d = ST.dispersion(el["denial_rate"].values, el["n_decided"].values)
     rows.append({"scope": "all products (raw lender rate)", **d})
@@ -53,7 +53,7 @@ def run(ctx):
     d = ST.dispersion(el["oe_ratio"].values, el["n_decided"].values)
     rows.append({"scope": "O/E ratio (1.0 = as expected from product mix)", **d})
 
-    # --- phân tán trong từng phân khúc lớn nhất
+    # --- dispersion within each of the largest segments
     seg_cube = cube.copy()
     seg_cube["segment"] = seg_label(seg_cube)
     seg_lender_rows = []
@@ -72,7 +72,7 @@ def run(ctx):
     ctx.save_table("q2_dispersion", disp)
     ctx.save_table("q2_segment_lender_rates", pd.concat(seg_lender_rows, ignore_index=True))
 
-    # --- lender vs quốc gia, quy mô, tập trung
+    # --- lender vs national, size, concentration
     n_el = len(el)
     summ = {
         "lenders_total": int(len(lend)), "lenders_eligible": int(n_el), "min_decided": minn,

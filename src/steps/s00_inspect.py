@@ -1,6 +1,6 @@
-"""Bước 00 - Kiểm tra nguồn dữ liệu (đề bài 2.3): định dạng, kích thước, số dòng/cột, schema,
-cột nào được đọc / không được đọc, đối chiếu tổng với Transmittal Sheet (TS).
-Không đọc nội dung cột nhân khẩu học: chỉ đọc metadata của Parquet (tên cột, kiểu, số dòng).
+"""Step 00 - Inspect the data source (brief 2.3): format, size, number of rows/columns, schema,
+which columns are read / not read, and the reconciliation of totals with the Transmittal Sheet (TS).
+The content of demographic columns is never read: only Parquet metadata (column names, types, row counts).
 """
 from __future__ import annotations
 

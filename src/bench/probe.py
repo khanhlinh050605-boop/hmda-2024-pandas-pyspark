@@ -1,9 +1,9 @@
-"""Tiến trình con để đo bộ nhớ đỉnh và chi phí khởi tạo trong TIẾN TRÌNH MỚI (không bị nhiễm từ các lần chạy trước).
+"""Child process that measures peak memory and start-up cost in a FRESH PROCESS (not contaminated by earlier runs).
 
   python -m src.bench.probe --config config.yaml --engine pandas --fraction 1.0
   python -m src.bench.probe --config config.yaml --engine spark  --fraction 0.5
   python -m src.bench.probe --config config.yaml --mode setup --engine spark
-In JSON ra stdout. Bộ nhớ = RSS của tiến trình + mọi tiến trình con (gồm JVM của Spark).
+Prints JSON to stdout. Memory = RSS of the process + all child processes (including the Spark JVM).
 """
 from __future__ import annotations
 

@@ -1,7 +1,7 @@
-"""In phân rã giá trị NGOÀI miền hợp lý (plausibility) trong LAR thô, để quyết định miền có loại oan hay không.
+"""Print a breakdown of values OUTSIDE the plausible domain in the raw LAR, to decide whether the domain wrongly excludes valid values.
 
-Chạy:  python scripts/check_domain_values.py            (đọc config.yaml, data/raw/2024_one_year_parquet; có thể truyền đường dẫn config khác)
-Không ghi file nào vào outputs; chỉ in ra màn hình (và scripts/domain_values_report.txt).
+Run:  python scripts/check_domain_values.py            (reads config.yaml, data/raw/2024_one_year_parquet; another config path can be passed)
+Writes nothing to outputs; only prints to the screen (and scripts/domain_values_report.txt).
 """
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ def main():
         lines.append(f"== {f}: domain {plaus[f]}")
         for k, v in stats[f].items():
             lines.append(f"   {k:>18}: {v:,}")
-        lines.append("   giá trị ngoài miền phổ biến nhất: " + ", ".join(f"{k} (x{c:,})" for k, c in top[f].most_common(8)))
+        lines.append("   most common out-of-domain values: " + ", ".join(f"{k} (x{c:,})" for k, c in top[f].most_common(8)))
     out = "\n".join(lines)
     print(out)
     (ROOT / "scripts" / "domain_values_report.txt").write_text(out, encoding="utf-8")

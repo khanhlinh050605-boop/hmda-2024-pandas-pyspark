@@ -1,10 +1,10 @@
 #!/usr/bin/env python
-"""Điều phối pipeline. Mỗi bước là một file riêng trong src/steps/, chạy lại độc lập.
+"""Pipeline orchestrator. Each step is a separate file in src/steps/ and can be re-run independently.
 
-Ví dụ:
-  python run.py --steps all --engine both            # 00..12 (11 = predictive, 12 = hình/bảng)
-  python run.py --steps 06,07 --engine pandas --force  # sửa Q3/Q4 xong chỉ chạy lại 2 bước đó
-  python run.py --steps 11                             # chỉ chạy predictive (proposal mục 8)
+Examples:
+  python run.py --steps all --engine both            # 00..12 (11 = predictive, 12 = figures/tables)
+  python run.py --steps 06,07 --engine pandas --force  # after editing Q3/Q4, re-run only those 2 steps
+  python run.py --steps 11                             # run only the predictive step (proposal section 8)
   python run.py --list
 """
 from __future__ import annotations
@@ -39,7 +39,7 @@ def parse_steps(arg: str) -> list[str]:
             out.append(tok.zfill(2))
     bad = [k for k in out if k not in STEPS]
     if bad:
-        raise SystemExit(f"Bước không tồn tại: {bad}. Dùng --list.")
+        raise SystemExit(f"Unknown step: {bad}. Use --list.")
     return out
 
 
@@ -56,14 +56,14 @@ def main(argv=None):
     ap.add_argument("--steps", default="all")
     ap.add_argument("--engine", choices=["pandas", "spark", "both"], default="both")
     ap.add_argument("--config", default=None)
-    ap.add_argument("--force", action="store_true", help="chạy lại dù manifest báo đã xong")
+    ap.add_argument("--force", action="store_true", help="re-run even if the manifest says the step is done")
     ap.add_argument("--list", action="store_true")
     a = ap.parse_args(argv)
     setup_logging()
     if a.list:
         for k, v in STEPS.items():
             m = importlib.import_module(f"src.steps.{v}")
-            print(f"{k}  {v:20s} {'[theo engine]' if m.ENGINE_BOUND else '[dùng chung]'}  {(m.__doc__ or '').strip().splitlines()[0]}")
+            print(f"{k}  {v:20s} {'[per engine]' if m.ENGINE_BOUND else '[shared]'}  {(m.__doc__ or '').strip().splitlines()[0]}")
         return 0
     cfg = load_config(a.config)
     steps = parse_steps(a.steps)
@@ -80,9 +80,9 @@ def main(argv=None):
                 (cfg.out_dir / "compare").mkdir(parents=True, exist_ok=True)
             man = Manifest((cfg.out_dir / "compare" if t == "shared" else cfg.engine_out(t)) / "manifest.json")
             if not a.force and man.is_done(mod.NAME, h):
-                log.info("[%s/%s] đã xong (config không đổi) - bỏ qua. Dùng --force để chạy lại.", sid, t)
+                log.info("[%s/%s] already done (config unchanged) - skipping. Use --force to re-run.", sid, t)
                 continue
-            log.info("=== bước %s %s [%s] ===", sid, mod.NAME, t)
+            log.info("=== step %s %s [%s] ===", sid, mod.NAME, t)
             t0 = time.time()
             try:
                 if mod.ENGINE_BOUND:

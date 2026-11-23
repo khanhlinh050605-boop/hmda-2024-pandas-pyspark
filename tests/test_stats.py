@@ -24,7 +24,7 @@ def test_forbidden_guard():
         assert not FORBIDDEN_RE.search(c), c
 
 
-# ---------------------------------------------------------------- OLS cluster CR1 theo lender
+# ---------------------------------------------------------------- OLS cluster CR1 by lender
 def _cells_from_rows(df, cat, cont, y, extra_keys=()):
     cols = [y] + cont
     g = df.groupby(cat + list(extra_keys), as_index=False)
@@ -67,7 +67,7 @@ def test_cluster_se_matches_bruteforce_multi_obs_per_lender():
     lcells = _cells_from_rows(df, ["g"], ["x"], "y", ["lei"])
     res = stats.ols_from_cells(cells, ["g"], ["x"], "y", lender_cells=lcells)
     base = stats.ols_from_cells(cells, ["g"], ["x"], "y")
-    assert np.allclose(res["coef"]["coef"], base["coef"]["coef"], rtol=0, atol=0)       # hệ số giữ nguyên
+    assert np.allclose(res["coef"]["coef"], base["coef"]["coef"], rtol=0, atol=0)       # coefficients unchanged
     X = _design(df, [("g", "b"), ("g", "c")], ["x"])
     se, G = _brute_cr1(X, df["y"].to_numpy(), res["coef"]["coef"].to_numpy(), df["lei"].to_numpy())
     assert np.allclose(res["coef"]["se_cluster"], se, rtol=1e-9)
@@ -77,9 +77,9 @@ def test_cluster_se_matches_bruteforce_multi_obs_per_lender():
 
 
 def test_cluster_se_one_obs_per_lender_is_classical_times_correction():
-    # mỗi lender 1 quan sát, |residual| không đổi => SE cluster = SE thường x sqrt(G(N-1)/((G-1)N)); với G=N hệ số = 1
+    # one observation per lender, |residual| constant => clustered SE = classical SE x sqrt(G(N-1)/((G-1)N)); with G=N the factor = 1
     m = 400
-    # (g,x) lặp 2 lần với nhiễu +1 / -1 => nhiễu trực giao với mọi hàm của (g,x)
+    # (g,x) repeated twice with noise +1 / -1 => noise orthogonal to every function of (g,x)
     df = pd.DataFrame({"g": np.tile(["a", "b", "a", "b"], m // 4), "x": np.tile([1.0, 2.0, 3.0, 4.0], m // 4)})
     half = m // 2
     df = pd.concat([df.iloc[:half], df.iloc[:half]], ignore_index=True)

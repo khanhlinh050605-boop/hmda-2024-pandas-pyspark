@@ -1,5 +1,5 @@
-"""Bước 02 - Đánh giá chất lượng dữ liệu: trạng thái theo field, miền phân tích, fingerprint lặp,
-lender có giá trị Exempt, ngoại lệ và đối chiếu số dòng theo lender với TS.
+"""Step 02 - Data quality assessment: status by field, analysis domain, repeated fingerprints,
+lenders with Exempt values, outliers and the row-count reconciliation by lender with the TS.
 """
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ CAT_FIELDS = [c for c in S.CATEGORICAL_RAW if c != "lei"]
 
 def run(ctx):
     cfg = ctx.cfg
-    # --- tổng quan cờ
+    # --- flag overview
     flags = ["is_app", "is_decided", "is_denied", "is_orig", "is_dup", "has_reported_exempt_value", "is_business",
              "is_open_end", "is_reverse", "is_consumer_cf"] + [f"v_{f}" for f in NUM_FIELDS] + ["v_dti"]
     tot = raw_sum(ctx, "qa_flags_total", [], flags)
@@ -30,7 +30,7 @@ def run(ctx):
     flag_tab = pd.DataFrame(rows)
     ctx.save_table("qa_flag_summary", flag_tab)
 
-    # --- trạng thái của từng trường số (đếm theo trạng thái)
+    # --- status of each numeric field (counts by status)
     st_rows = []
     for f in STATUS_FIELDS:
         d = raw_sum(ctx, f"qa_status_{f}", [f"{f}_status"], [])
@@ -41,7 +41,7 @@ def run(ctx):
     st_tab = st_tab.sort_values(["field", "_o"]).drop(columns="_o")
     ctx.save_table("qa_numeric_status", st_tab)
 
-    # --- trạng thái theo kết quả hồ sơ: thiếu/miễn có "ghi khác nhau theo outcome" không?
+    # --- status by application outcome: is missing/exempt reporting different by outcome?
     out_rows = []
     for f in STATUS_FIELDS:
         d = raw_sum(ctx, f"qa_status_action_{f}", [f"{f}_status", "action_taken"], [])
@@ -61,7 +61,7 @@ def run(ctx):
     oc["recorded_differently_by_outcome"] = (oc["gap_denied_minus_approved"].abs() > 0.05).astype(int)
     ctx.save_table("qa_status_by_outcome", oc)
 
-    # --- mã của các biến phân loại
+    # --- codes of the categorical variables
     code_rows = []
     for c in CAT_FIELDS:
         d = raw_sum(ctx, f"qa_codes_{c}", [c], [])
@@ -69,11 +69,11 @@ def run(ctx):
             code_rows.append({"field": c, "code": r[c], "n": int(r["n"]), "share": r["n"] / n_total})
     ctx.save_table("qa_categorical_codes", pd.DataFrame(code_rows))
 
-    # --- fingerprint lặp + record có giá trị Exempt theo hành động
+    # --- repeated fingerprints + records with an Exempt value by action
     d = raw_sum(ctx, "qa_dup_exempt_by_action", ["action_taken"], ["is_dup", "has_reported_exempt_value"])
     ctx.save_table("qa_dup_exempt_by_action", d)
 
-    # --- giá trị ngoài miền hợp lý (đã gắn cờ, không xoá)
+    # --- values outside the plausible domain (flagged, not deleted)
     imp = []
     for f in list(S.NUMERIC_RAW):
         d = raw_sum(ctx, f"qa_implausible_{f}", [], [f"v_{f}"], where=[(f"{f}_status", "==", "VALUE")])
@@ -88,7 +88,7 @@ def run(ctx):
     imp_tab = pd.DataFrame(imp)
     ctx.save_table("qa_implausible", imp_tab)
 
-    # --- percentile + ngoại lệ (ngoài hàng rào IQR nhưng vẫn trong miền hợp lý = ngoại lệ thật, giữ)
+    # --- percentiles + outliers (outside the IQR fences but inside the plausible domain = genuine outliers, kept)
     out_tab = []
     pct_rows = []
     for f in NUM_FIELDS:
@@ -110,7 +110,7 @@ def run(ctx):
     ctx.save_table("qa_percentiles", pd.DataFrame(pct_rows))
     ctx.save_table("qa_outliers", pd.DataFrame(out_tab))
 
-    # --- đối chiếu theo lender với TS (chỉ để kiểm chứng)
+    # --- reconciliation by lender with the TS (verification only)
     lc = raw_sum(ctx, "qa_lei_counts", ["lei"], [])
     ts = read_ts(cfg)
     if ts is not None:

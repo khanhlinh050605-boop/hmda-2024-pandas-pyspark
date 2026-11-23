@@ -1,6 +1,6 @@
-"""Engine Pandas: prepare (đọc từng file, làm sạch, tạo biến) + các truy vấn gộp trên master Parquet.
+"""Pandas engine: prepare (read file by file, clean, create variables) + grouped queries on the Parquet master.
 
-Cài đặt độc lập với Spark: chỉ dùng pandas/numpy/pyarrow. Master được đọc theo cột, cache từng cột.
+Implemented independently of Spark: uses only pandas/numpy/pyarrow. The master is read column by column and each column is cached.
 """
 from __future__ import annotations
 
@@ -20,12 +20,12 @@ from ..core.definitions import DTI_TEXT_MAP, Defs, dti_band_numpy
 from ..core.runtime import log
 from .base import Engine, pairs_of, pname
 
-MOD = 2147483647  # 2^31 - 1: số nguyên tố của bộ băm khoá lấy mẫu (xem sample_key)
+MOD = 2147483647  # 2^31 - 1: the prime of the sampling-key hash (see sample_key)
 
 
-# =============================================================== khoá lấy mẫu (dùng chung ý tưởng với Spark)
+# =============================================================== sampling key (same idea as in Spark)
 def sample_key(part_no: np.ndarray, row_idx: np.ndarray, seed: int) -> np.ndarray:
-    """u in [0,1) xác định theo (part_no,row_idx): cùng công thức số nguyên với Spark => mẫu lồng nhau giống hệt."""
+    """u in [0,1) determined by (part_no,row_idx): the same integer formula as Spark => identical nested samples."""
     i = part_no.astype(np.int64) * 10_000_000 + row_idx.astype(np.int64)
     h = (i * 48271 + (seed % MOD)) % MOD
     h2 = (h * h + 1013904223) % MOD
@@ -33,7 +33,7 @@ def sample_key(part_no: np.ndarray, row_idx: np.ndarray, seed: int) -> np.ndarra
     return h3.astype(np.float64) / MOD
 
 
-# =============================================================== phân tích chuỗi -> số + trạng thái
+# =============================================================== parse string -> number + status
 def parse_numeric(ser: pd.Series, field: str) -> tuple[np.ndarray, np.ndarray]:
     """Parse one quantitative HMDA field using only that field's special tokens."""
     s = ser.str.strip()
@@ -68,9 +68,9 @@ def band_labels_for(vals: np.ndarray, valid: np.ndarray, status: np.ndarray, edg
     return out.astype(object)
 
 
-# =============================================================== xây khung master cho một file
+# =============================================================== build the master frame for one file
 def build_master_frame(df: pd.DataFrame, cfg, defs: Defs, part_no: int) -> pd.DataFrame:
-    """df: cột chuẩn (chuỗi, không null). Trả về khung master đã có biến phái sinh và cờ."""
+    """df: canonical columns (strings, no nulls). Returns the master frame with derived variables and flags."""
     n = len(df)
     plaus = cfg["plausibility"]
     out: dict[str, np.ndarray | pd.Series] = {}
@@ -79,7 +79,7 @@ def build_master_frame(df: pd.DataFrame, cfg, defs: Defs, part_no: int) -> pd.Da
         s = df[c].str.strip()
         out[c] = s.where(s != "", S.MISSING).to_numpy(object)
 
-    # --- số + trạng thái + hợp lệ
+    # --- number + status + validity
     num: dict[str, tuple] = {}
     for c in S.NUMERIC_RAW:
         vals, status = parse_numeric(df[c], c)
@@ -90,7 +90,7 @@ def build_master_frame(df: pd.DataFrame, cfg, defs: Defs, part_no: int) -> pd.Da
         out[f"{c}_status"] = status
         out[f"v_{c}"] = valid.astype(np.int8)
 
-    # --- DTI: band chữ hoặc số
+    # --- DTI: text band or number
     raw = df[S.DTI_RAW].str.strip()
     txt = raw.str.replace("%", "", regex=False).str.replace(" ", "", regex=False)
     dti_vals, dti_status = parse_numeric(raw, "dti")
@@ -130,7 +130,7 @@ def build_master_frame(df: pd.DataFrame, cfg, defs: Defs, part_no: int) -> pd.Da
                                                  num["property_value"][1], defs.edges["property_value_band"],
                                                  defs.labels["property_value_band"])
 
-    # --- log, năm, bin histogram
+    # --- log, year, histogram bin
     def safe_log(v, valid):
         return np.where(valid, np.log(np.where(valid, v, 1.0)), np.nan)
 
@@ -148,12 +148,12 @@ def build_master_frame(df: pd.DataFrame, cfg, defs: Defs, part_no: int) -> pd.Da
     v_rate = num["interest_rate"][2]
     out["rate_bin"] = np.where(v_rate, np.floor(np.where(v_rate, num["interest_rate"][0], 0.0) * 4.0), -9999).astype(np.int16)
 
-    # --- sản phẩm / phân khúc
+    # --- product / segment
     sep = S.SEP
     out["product"] = (out["loan_type"].astype(str) + sep + out["loan_purpose"].astype(str)).astype(object)
     out["segment"] = (out["product"].astype(str) + sep + out["lien_status"].astype(str)).astype(object)
 
-    # --- cờ kết quả
+    # --- outcome flags
     act = out["action_taken"].astype(str)
     out["is_app"] = np.isin(act, ["1", "2", "3", "4", "5"]).astype(np.int8)
     out["is_decided"] = np.isin(act, ["1", "2", "3"]).astype(np.int8)
@@ -171,12 +171,12 @@ def build_master_frame(df: pd.DataFrame, cfg, defs: Defs, part_no: int) -> pd.Da
         exempt |= num[c][1] == "EXEMPT"
     out["has_reported_exempt_value"] = exempt.astype(np.int8)
 
-    # --- mẫu hồi quy Q4
+    # --- Q4 regression sample
     base = (act == "1") & consumer_cf & v_amt & v_inc & num["cltv"][2] & num["loan_term"][2] & num["property_value"][2]
     out["q4_reg_rate"] = (base & num["interest_rate"][2]).astype(np.int8)
     out["q4_reg_spread"] = (base & num["rate_spread"][2]).astype(np.int8)
 
-    # --- khoá lấy mẫu
+    # --- sampling key
     row_idx = np.arange(n, dtype=np.int64)
     out["part_no"] = np.full(n, part_no, dtype=np.int32)
     out["row_idx"] = row_idx.astype(np.int32)
@@ -207,7 +207,7 @@ def to_arrow(df: pd.DataFrame) -> pa.Table:
     return pa.Table.from_pandas(df, schema=pa.schema(fields), preserve_index=False)
 
 
-# =============================================================== liệt kê file nguồn
+# =============================================================== list source files
 def list_lar_files(cfg) -> list[tuple[int, Path]]:
     d = cfg.path("lar_dir")
     rx = re.compile(cfg["paths"]["part_regex"])
@@ -217,16 +217,16 @@ def list_lar_files(cfg) -> list[tuple[int, Path]]:
         if m:
             files.append((int(m.group(1)), p))
     if not files:
-        raise FileNotFoundError(f"Không thấy file *.parquet khớp part_regex trong {d}")
+        raise FileNotFoundError(f"No *.parquet file matching part_regex found in {d}")
     return sorted(files)
 
 
 def dup_columns(all_cols) -> list[str]:
-    """Cột dùng để băm trùng lặp: mọi cột TRỪ nhóm bị cấm (nhân khẩu học / sau quyết định)."""
+    """Columns used to hash duplicates: every column EXCEPT the forbidden group (demographic / post-decision)."""
     return [c for c in all_cols if not S.FORBIDDEN_RE.search(S.norm_name(c))]
 
 
-# =============================================================== lớp engine
+# =============================================================== engine class
 class PandasEngine(Engine):
     name = "pandas"
 
@@ -275,7 +275,7 @@ class PandasEngine(Engine):
         dup_vals = uniq[cnt > 1]
         n_dup_rows = int(cnt[cnt > 1].sum())
         n_excess_dup_rows = int((cnt[cnt > 1] - 1).sum())
-        log.info("[pandas] pass B (gắn cờ trùng lặp): %d giá trị băm lặp, %d dòng", len(dup_vals), n_dup_rows)
+        log.info("[pandas] pass B (flag duplicates): %d repeated hash values, %d rows", len(dup_vals), n_dup_rows)
         for (part_no, _), h in zip(src, hashes):
             t = pq.read_table(stage / f"part-{part_no:05d}.parquet")
             flag = np.isin(h, dup_vals).astype(np.int8)
@@ -291,12 +291,12 @@ class PandasEngine(Engine):
         (ctx.info_dir() / "_meta.json").write_text(json.dumps(meta, indent=2))
         return meta
 
-    # ---------------------------------------------------------------- đọc master theo cột
+    # ---------------------------------------------------------------- read the master by column
     def open(self, ctx) -> None:
         d = ctx.master_dir()
         self._files = sorted(d.glob("part-*.parquet"))
         if not self._files:
-            raise FileNotFoundError(f"Chưa có master Pandas ở {d}. Chạy bước 01 trước.")
+            raise FileNotFoundError(f"No Pandas master at {d}. Run step 01 first.")
         self._cols = pq.ParquetFile(self._files[0]).schema_arrow.names
         self._cache = {}
         self._ctx = ctx
@@ -308,7 +308,7 @@ class PandasEngine(Engine):
         if name in self._cache:
             return self._cache[name]
         if name not in self._cols:
-            raise KeyError(f"Master không có cột {name}")
+            raise KeyError(f"Master has no column {name}")
         is_str = pa.types.is_string(pq.ParquetFile(self._files[0]).schema_arrow.field(name).type)
         chunks = []
         for f in self._files:
@@ -330,7 +330,7 @@ class PandasEngine(Engine):
         """Read one projected column set with a single Parquet open per file."""
         missing = [c for c in names if c not in self._cols]
         if missing:
-            raise KeyError(f"Master không có cột {missing}")
+            raise KeyError(f"Master has no columns {missing}")
         frames = [pq.read_table(f, columns=names).to_pandas() for f in self._files]
         out = pd.concat(frames, ignore_index=True)
         for c in out.columns:
@@ -366,7 +366,7 @@ class PandasEngine(Engine):
             elif op == "<":
                 m = s < v
             else:
-                raise ValueError(f"toán tử where lạ: {op}")
+                raise ValueError(f"unknown where operator: {op}")
             m = np.asarray(m, dtype=bool)
             mask = m if mask is None else (mask & m)
         return mask

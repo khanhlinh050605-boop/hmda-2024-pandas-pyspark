@@ -1,0 +1,11 @@
+{
+  "engine": "spark",
+  "n_files": 6,
+  "n_rows": 120600,
+  "n_dup_rows": 1200,
+  "n_excess_dup_rows": 600,
+  "dup_columns_n": 51,
+  "lenders_with_exempt_values": 6,
+  "seconds": 13.0,
+  "pyspark": "3.5.3"
+}

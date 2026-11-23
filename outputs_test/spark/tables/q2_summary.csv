@@ -1,0 +1,2 @@
+lenders_total,lenders_eligible,min_decided,share_of_decided_by_eligible,national_denial_rate,eligible_raw_ci_above_national,eligible_raw_ci_below_national,eligible_oe_above_1,eligible_oe_below_1,std_raw,std_standardised,iqr_raw,iqr_standardised,spearman_log_size_vs_rate,spearman_log_size_vs_oe,top10_lenders_share_of_decided,std_reduction_share
+115,78,100,0.98721467498617799,0.36109904430929629,27,29,23,28,0.094503234817530674,0.093798445200340169,0.13154002306128787,0.12886142665962286,-0.051973671732293288,-0.051455199581192559,0.41453084274543872,0.0074578358989650928

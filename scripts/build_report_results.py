@@ -84,7 +84,7 @@ def main() -> None:
     if not corr.get("all_agree"):
         raise RuntimeError("Refusing to build report macros: full-data correctness did not pass")
     bench = table("table3_benchmark", CMP / "tables")
-    if "workload" in bench.columns:          # macro hiện có mô tả workload 1 (lender_groupby)
+    if "workload" in bench.columns:          # the existing macro describes workload 1 (lender_groupby)
         bench = bench[bench["workload"] == "lender_groupby"]
     bcomp = bench[(bench["scenario"] == "compute_only") & (bench["fraction"] == 1.0)].iloc[0]
     bread = bench[(bench["scenario"] == "read_compute") & (bench["fraction"] == 1.0)].iloc[0]

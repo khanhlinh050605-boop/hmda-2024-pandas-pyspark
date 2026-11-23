@@ -1,4 +1,4 @@
-"""Hàm tiện ích dùng chung cho các bước: gọi engine + lưu bảng thô, đổi tên cột, bảng tỷ lệ."""
+"""Utilities shared by the steps: call an engine + save raw tables, rename columns, rate tables."""
 from __future__ import annotations
 
 import io
@@ -20,7 +20,7 @@ PROBS_DESC = [0.05, 0.25, 0.5, 0.75, 0.95]
 PROBS_QA = [0.001, 0.01, 0.05, 0.25, 0.5, 0.75, 0.95, 0.99, 0.999]
 
 
-# ------------------------------------------------------------------ gọi engine + lưu bảng thô
+# ------------------------------------------------------------------ call engine + save raw tables
 def raw_sum(ctx, name, keys, sums=SUMS, where=()):
     df = ctx.engine.group_sum(keys, sums, ctx.where(where))
     ctx.save_raw(name, df, list(keys))
@@ -39,13 +39,13 @@ def raw_pct(ctx, name, keys, col, probs, where=()):
     return df
 
 
-# ------------------------------------------------------------------ bảng tỷ lệ
+# ------------------------------------------------------------------ rate tables
 def to_counts(df: pd.DataFrame) -> pd.DataFrame:
     return df.rename(columns=RENAME)
 
 
 def with_rates(df: pd.DataFrame, small: int, orig: bool = True) -> pd.DataFrame:
-    """Bảng đếm -> thêm denial rate (trên decided) + origination share (trên apps 1-5), kèm Wilson 95%."""
+    """Count table -> add denial rate (over decided) + origination share (over actions 1-5), with Wilson 95% intervals."""
     df = df.copy()
     ST.add_rate_ci(df, "n_denied", "n_decided", prefix="denial_", small=small)
     df = df.rename(columns={"denial_rate": "denial_rate", "denial_small_cell": "small_cell"})
@@ -76,7 +76,7 @@ def top_segments(national_seg: pd.DataFrame, k: int) -> list[str]:
     return t.sort_values(["n_decided", "segment"], ascending=[False, True])["segment"].head(k).tolist()
 
 
-# ------------------------------------------------------------------ Transmittal Sheet (chỉ đối chiếu / nhãn)
+# ------------------------------------------------------------------ Transmittal Sheet (reconciliation / labels only)
 def read_ts(cfg) -> pd.DataFrame | None:
     p = cfg.path("ts_file")
     if not p.exists():

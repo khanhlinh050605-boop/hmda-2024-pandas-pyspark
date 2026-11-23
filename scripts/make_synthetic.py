@@ -1,10 +1,10 @@
-"""Sinh dữ liệu GIẢ LẬP cùng schema HMDA LAR (chỉ để TEST code, KHÔNG dùng để phân tích).
+"""Generate SYNTHETIC data with the HMDA LAR schema (only to TEST the code, NEVER used for analysis).
 
   python scripts/make_synthetic.py --out data/synthetic --rows 120000 --parts 6 --lenders 120
 
-Tạo: <out>/lar/part-00000.parquet..., <out>/ts.zip (pipe), và 1 file *.lnk để kiểm tra việc bỏ qua file lạ.
-Mọi cột là chuỗi như dữ liệu thật; có trạng thái NA/Exempt theo field, trùng lặp, lender có giá trị Exempt,
-và cả các cột nhân khẩu học (để kiểm tra code KHÔNG đọc chúng).
+Creates: <out>/lar/part-00000.parquet..., <out>/ts.zip (pipe), and one *.lnk file to check that stray files are ignored.
+Every column is a string like the real data; it includes NA/Exempt status by field, duplicates, lenders with Exempt values,
+and also demographic columns (to check that the code does NOT read them).
 """
 from __future__ import annotations
 
@@ -57,7 +57,7 @@ def make(rows: int, parts: int, lenders: int, seed: int) -> list[pd.DataFrame]:
     biz = rng.choice(["1", "2"], size=n, p=[0.04, 0.96])
     rev = rng.choice(["1", "2"], size=n, p=[0.01, 0.99])
     state = rng.choice(STATES, size=n, p=np.array([0.2, 0.15, 0.1, 0.08, 0.06, 0.06, 0.05, 0.05, 0.05, 0.04, 0.03, 0.01, 0.06, 0.06]))
-    income = np.exp(rng.normal(4.4, 0.6, n))               # nghìn USD
+    income = np.exp(rng.normal(4.4, 0.6, n))               # thousand USD
     loan_amt = np.round(np.exp(rng.normal(12.3, 0.6, n)) / 10000) * 10000 + 5000
     prop = np.round(loan_amt / rng.uniform(0.5, 1.0, n) / 5000) * 5000
     cltv = np.round(rng.normal(78, 14, n), 2)
@@ -91,10 +91,10 @@ def make(rows: int, parts: int, lenders: int, seed: int) -> list[pd.DataFrame]:
         df.loc[orig, c] = "NA"
     miss = rng.random(n)
     df.loc[miss < 0.04, "income"] = "NA"
-    df.loc[(miss > 0.04) & (miss < 0.05), "income"] = "-5"          # không hợp lệ
-    df.loc[(miss > 0.05) & (miss < 0.052), "loan_amount"] = "0"     # không hợp lệ
+    df.loc[(miss > 0.04) & (miss < 0.05), "income"] = "-5"          # invalid
+    df.loc[(miss > 0.05) & (miss < 0.052), "loan_amount"] = "0"     # invalid
     df.loc[(miss > 0.06) & (miss < 0.07), "property_value"] = "NA"
-    df.loc[(miss > 0.07) & (miss < 0.0705), "income"] = "9999999"   # cực đoan
+    df.loc[(miss > 0.07) & (miss < 0.0705), "income"] = "9999999"   # extreme
     # Regression fixture: two spellings of the same valid income.
     df.loc[0, "income"] = "1111"
     df.loc[1, "income"] = "1111.0"
@@ -105,7 +105,7 @@ def make(rows: int, parts: int, lenders: int, seed: int) -> list[pd.DataFrame]:
         df.loc[ex_mask, c] = "Exempt"
     df.loc[ex_mask, "open-end_line_of_credit"] = "1111"
     df.loc[ex_mask, "business_or_commercial_purpose"] = "1111"
-    # cột phụ (nhân khẩu học v.v.) để thử hàng rào
+    # extra columns (demographic etc.) to test the guard
     for c in EXTRA_COLS:
         if c not in df.columns:
             if "census_tract" == c:
@@ -118,7 +118,7 @@ def make(rows: int, parts: int, lenders: int, seed: int) -> list[pd.DataFrame]:
                 df[c] = rng.choice(["1", "2", "3", "5", "6"], n)
             else:
                 df[c] = rng.choice(["1", "2", "NA", "1111"], n)
-    # trùng lặp chính xác: sao chép 0.5% dòng
+    # exact duplicates: copy 0.5% of the rows
     dup_idx = rng.choice(n, size=int(n * 0.005), replace=False)
     df = pd.concat([df, df.iloc[dup_idx]], ignore_index=True)
     df = df.sample(frac=1.0, random_state=seed).reset_index(drop=True)
@@ -157,7 +157,7 @@ def main():
             "respondent_state", "respondent_city", "respondent_zip_code", "lar_count"]
     with zipfile.ZipFile(out / "ts.zip", "w") as z:
         z.writestr("2024_public_ts_one_year_pipe.txt", ts[cols].to_csv(sep="|", index=False))
-    print(f"OK: {len(full)} dòng, {len(ts)} lender -> {out}")
+    print(f"OK: {len(full)} rows, {len(ts)} lenders -> {out}")
 
 
 if __name__ == "__main__":

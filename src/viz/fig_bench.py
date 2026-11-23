@@ -1,4 +1,4 @@
-"""Hình 5 - Benchmark Pandas vs PySpark, hai workload (lender_groupby, median_by_state)."""
+"""Figure 5 - Pandas vs PySpark benchmark, two workloads (lender_groupby, median_by_state)."""
 from __future__ import annotations
 
 import numpy as np
@@ -23,7 +23,7 @@ def build(cns, T, out, cfg):
     wls = [w for w in WL_LABEL if w in set(s["workload"])]
     mp = new_multipanel(cns)
 
-    # a, b: thời gian compute-only, một panel cho mỗi workload
+    # a, b: compute-only time, one panel per workload
     last_ax = None
     for lab, w in zip("ab", wls):
         ax = mp.panel(lab, 42, 42)
@@ -38,7 +38,7 @@ def build(cns, T, out, cfg):
         if lab == "a":
             ax.legend(frameon=False, fontsize=5)
 
-    # c: speedup, cột nhóm theo workload; hatched = Tie / inconclusive
+    # c: speedup, bars grouped by workload; hatched = Tie / inconclusive
     ax = mp.panel("c", 42, 42, margin_right=0)
     a = t3[t3["scenario"] == "compute_only"]
     w_bar, gap = 0.8, 0.8
@@ -64,7 +64,7 @@ def build(cns, T, out, cfg):
                        Patch(facecolor="white", edgecolor="black", hatch="////", label=TIE)],
               frameon=False, fontsize=5, loc="upper left")
 
-    # d: bộ nhớ đỉnh, nhóm theo workload x tỷ lệ
+    # d: peak memory, grouped by workload x fraction
     ax = mp.panel("d", 42, 42)
     w_ = 0.38
     xs, labels = [], []
@@ -83,14 +83,14 @@ def build(cns, T, out, cfg):
     ax.set_ylabel("Peak memory (GiB, process tree)")
     ax.legend(frameon=False, fontsize=5)
 
-    # e: chi phí khởi tạo
+    # e: start-up cost
     ax = mp.panel("e", 42, 42)
     ax.barh(range(len(setup)), setup["median_s"], color=C_GREY, height=0.6)
     ax.set_yticks(range(len(setup)))
     ax.set_yticklabels(setup["item"].str.replace(r"_s$", "", regex=True).str.replace("_", " "), fontsize=5)
     ax.set_xlabel("Set-up cost, fresh process (s)")
 
-    # f: đọc + tính, hai workload; marker rỗng = Tie / inconclusive
+    # f: read + compute, two workloads; hollow marker = Tie / inconclusive
     ax = mp.panel("f", 42, 42, margin_right=0)
     rcs = s[s["scenario"] == "read_compute"]
     for w, ls in zip(wls, ("-", "--")):

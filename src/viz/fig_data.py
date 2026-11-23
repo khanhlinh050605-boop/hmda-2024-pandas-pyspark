@@ -1,4 +1,4 @@
-"""Hình 0 - Dữ liệu: trạng thái của các trường số, phân bố loan amount và income (thang log)."""
+"""Figure 0 - Data: status of the numeric fields, distribution of loan amount and income (log scale)."""
 from __future__ import annotations
 
 import numpy as np

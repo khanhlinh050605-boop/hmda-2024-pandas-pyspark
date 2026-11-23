@@ -1,4 +1,4 @@
-"""Đọc config.yaml, giải quyết đường dẫn, băm cấu hình theo từng nhóm tham số."""
+"""Read config.yaml, resolve paths, hash the configuration per parameter group."""
 from __future__ import annotations
 
 import copy
@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class Cfg(dict):
-    """dict có thêm thuộc tính tiện dụng."""
+    """dict with convenient attribute access."""
 
     root: Path = ROOT
     source: str = ""

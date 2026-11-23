@@ -1,0 +1,16 @@
+item,value
+source,"HMDA 2024 One-Year National Loan-Level Dataset (FFIEC/CFPB), group's Parquet conversion"
+file_format,"Parquet (snappy), one file per part"
+n_files,6
+total_size_gib,0.006
+n_rows,120600
+n_columns,100
+columns_used_as_input,21
+columns_in_duplicate_fingerprint,51
+columns_never_read,49
+row_groups_total,6
+ts_institutions,115
+ts_sum_lar_count,120600
+ts_matches_lar_rows,True
+unit_of_observation,one application/loan record (not one funded loan)
+partitioning_note,"Source and master stored as many Parquet part files (no Hive partition by state): lender-level and product-level queries are not state-keyed, state skew (CA/TX/FL) would give uneven partitions, and column pruning already limits I/O."

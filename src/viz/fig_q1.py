@@ -1,4 +1,4 @@
-"""Hình 1 - Q1: denial rate theo loan type x purpose; state x loan type; tính nhất quán giữa các state."""
+"""Figure 1 - Q1: denial rate by loan type x purpose; state x loan type; consistency across states."""
 from __future__ import annotations
 
 import numpy as np
@@ -78,4 +78,4 @@ def build(cns, T, out, cfg):
                       "not equality of state rates; Garwood 95% intervals for O/E (d). Differences are associations, not causal effects.",
             "n_unit": f"n = {int(prod['n_decided'].sum()):,} decided applications for denial and {int(prod['n_apps'].sum()):,} applications for origination share; "
                       "unit = application record; state NA (location not provided) excluded from b-d.",
-            "observed": None}   # bỏ dòng Observed (nêu ô 13 record) khỏi caption
+            "observed": None}   # drop the Observed line (which names a 13-record cell) from the caption

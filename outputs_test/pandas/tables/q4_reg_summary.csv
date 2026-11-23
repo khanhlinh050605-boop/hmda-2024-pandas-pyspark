@@ -1,0 +1,3 @@
+y,n,n_terms,r2,adj_r2,rmse,cond_scaled,n_cells,reference_levels,G
+interest_rate,48523,24,0.3382512044307926,0.33793737894370846,0.50273453400820833,62992.835891706338,819,loan_type=1; loan_purpose=1; lien_status=1; occupancy_type=1; dti_band=36-<43,108
+rate_spread,48523,24,0.30635316141991453,0.30602420871393421,0.53987508689425345,62992.835891706338,819,loan_type=1; loan_purpose=1; lien_status=1; occupancy_type=1; dti_band=36-<43,108

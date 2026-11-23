@@ -1,8 +1,8 @@
-"""Bước 07 - RQ Q4: với khoản vay đã giải ngân, lãi suất và rate spread khác nhau thế nào theo loan type, purpose, lien;
-những đặc điểm khoản vay nào liên hệ với chúng (hồi quy OLS, chỉ là liên hệ)?
+"""Step 07 - RQ Q4: for originated loans, how do interest rate and rate spread differ by loan type, purpose, lien;
+which loan characteristics are associated with them (OLS regression, association only)?
 
-Các trường giá cả (interest_rate, rate_spread, loan_term, total_loan_costs) chỉ được dùng MÔ TẢ trên khoản vay đã giải ngân.
-Hồi quy: OLS dựng từ tổng theo cell (ma trận chuẩn), engine chỉ trả tổng theo cell -> cùng một bộ giải cho Pandas và Spark.
+Pricing fields (interest_rate, rate_spread, loan_term, total_loan_costs) are used only to DESCRIBE originated loans.
+Regression: OLS built from per-cell sums (normal equations); the engines return only per-cell sums -> one common solver for Pandas and Spark.
 """
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ def _summ(m: pd.DataFrame, p: pd.DataFrame, y: str, keys: list[str]) -> pd.DataF
 
 def run(ctx):
     cfg = ctx.cfg
-    # --- 1. mô tả theo phân khúc
+    # --- 1. description by segment
     for y in Y_FINE:
         w = ["is_orig", f"v_{y}"]
         m = raw_moments(ctx, f"q4_mom_{y}_fine", FINE, [y], where=w, extremes=True)
@@ -52,7 +52,7 @@ def run(ctx):
         p = raw_pct(ctx, f"q4_pct_{y}_type", ["loan_type"], y, PROBS_DESC, where=w)
         ctx.save_table(f"q4_summary_{y}_by_loan_type", _summ(m, p.drop(columns=["n_valid", "min", "max"]), y, ["loan_type"]))
 
-    # --- 2. độ phủ: bao nhiêu khoản đã giải ngân có giá trị hợp lệ
+    # --- 2. coverage: how many originated loans have a valid value
     cov_rows = []
     for y in Y_FINE:
         d = raw_sum(ctx, f"q4_status_{y}", FINE + [f"{y}_status"], ["v_" + y], where=["is_orig"])
@@ -61,7 +61,7 @@ def run(ctx):
         cov_rows.append(d)
     ctx.save_table("q4_coverage", pd.concat(cov_rows, ignore_index=True))
 
-    # --- 3. hồi quy OLS từ tổng theo cell
+    # --- 3. OLS regression from per-cell sums
     reg = cfg["regression"]
     cat, cont = reg["categorical"], reg["continuous"]
     sums_rows, coef_all = [], []

@@ -1,4 +1,4 @@
-"""Hình 6 - Predictive extension: ROC, calibration, chỉ số, tầm quan trọng biến."""
+"""Figure 6 - Predictive extension: ROC, calibration, metrics, variable importance."""
 from __future__ import annotations
 
 import numpy as np

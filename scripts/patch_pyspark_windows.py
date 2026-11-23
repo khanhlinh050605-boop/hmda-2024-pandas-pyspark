@@ -1,17 +1,17 @@
-"""Vá lỗi PySpark trên Windows + Python 3.12+ (SPARK-53759) mà KHÔNG đổi phiên bản Python hay Spark.
+"""Patch the PySpark bug on Windows + Python 3.12+ (SPARK-53759) WITHOUT changing the Python or Spark version.
 
-Triệu chứng: "Python worker exited unexpectedly (crashed)" kèm java.io.EOFException khi dùng createDataFrame, UDF, rdd.map...
-Nguyên nhân: worker (đường simple-worker, luôn dùng trên Windows) không flush socket trước khi tiến trình thoát; trên Python 3.12+
-socket bị đóng trước khi dữ liệu được flush.  Bản vá: bọc main() bằng try/finally và flush socket (giống cách Spark đã sửa ở bản
-phát triển mới).
+Symptom: "Python worker exited unexpectedly (crashed)" with java.io.EOFException when using createDataFrame, UDFs, rdd.map...
+Cause: the worker (simple-worker path, always used on Windows) does not flush the socket before the process exits; on Python 3.12+
+the socket is closed before the data is flushed.  The patch wraps main() in try/finally and flushes the socket (the same way Spark fixed it in the
+newer development version).
 
-Script sửa 2 nơi trong môi trường Python đang chạy (KHÔNG sửa mã trong repo):
+The script patches 2 places in the running Python environment (it does NOT modify code in the repo):
   1) pyspark/worker.py
-  2) pyspark/python/lib/pyspark.zip  (Spark nạp worker từ file zip này trước, nên bắt buộc phải vá cả zip)
-Có sao lưu *.bak và chạy lại nhiều lần an toàn (idempotent).
+  2) pyspark/python/lib/pyspark.zip  (Spark loads the worker from this zip first, so the zip must be patched too)
+A *.bak backup is made and re-running is safe (idempotent).
 
-Dùng:   python scripts/patch_pyspark_windows.py            # vá
-        python scripts/patch_pyspark_windows.py --restore  # hoàn tác từ bản sao lưu
+Usage:   python scripts/patch_pyspark_windows.py            # patch
+        python scripts/patch_pyspark_windows.py --restore  # restore from the backup
 """
 from __future__ import annotations
 
@@ -75,9 +75,9 @@ def restore(paths) -> None:
         bak = p.with_name(p.name + ".bak")
         if bak.exists():
             shutil.copy2(bak, p)
-            print(f"khôi phục {p}")
+            print(f"restored {p}")
         else:
-            print(f"không có bản sao lưu cho {p}")
+            print(f"no backup for {p}")
 
 
 def main() -> int:
@@ -85,21 +85,21 @@ def main() -> int:
 
     root = Path(pyspark.__file__).parent
     targets = [root / "worker.py", root / "python" / "lib" / "pyspark.zip"]
-    print(f"pyspark {pyspark.__version__} tại {root}")
+    print(f"pyspark {pyspark.__version__} at {root}")
     if "--restore" in sys.argv:
         restore(targets)
         return 0
     rc = 0
     for t in targets:
         if not t.exists():
-            print(f"bỏ qua (không thấy): {t}")
+            print(f"skipping (not found): {t}")
             continue
         st = patch_zip(t) if t.suffix == ".zip" else patch_file(t)
         print(f"{t.name}: {st}")
         if st == "pattern-not-found":
             rc = 1
     if rc:
-        print("KHÔNG vá được: mã worker của phiên bản PySpark này khác mong đợi. Báo lại cho người hỗ trợ, đừng sửa tay.")
+        print("COULD NOT patch: the worker code of this PySpark version differs from what was expected. Report it to whoever supports you; do not edit by hand.")
     return rc
 
 

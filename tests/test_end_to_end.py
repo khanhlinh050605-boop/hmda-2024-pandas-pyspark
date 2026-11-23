@@ -1,4 +1,4 @@
-"""Chạy nhỏ trên dữ liệu giả lập: hai engine phải khớp. Cần scripts/make_synthetic.py đã chạy (hoặc tự tạo)."""
+"""Small run on synthetic data: the two engines must agree. Needs scripts/make_synthetic.py to have run (or builds the data itself)."""
 import json, subprocess, sys
 from pathlib import Path
 

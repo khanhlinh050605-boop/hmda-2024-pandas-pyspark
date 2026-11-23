@@ -1,5 +1,5 @@
-"""Tiện ích vẽ hình bằng cnsplots (Week 9, sec. 2-4): kích thước theo mm, palette Okabe-Ito, panel a/b/c,
-lưu PDF vector + PNG. Chỉ import cnsplots khi vẽ (cần Python 3.12)."""
+"""Plotting utilities using cnsplots (Week 9, sec. 2-4): sizes in mm, Okabe-Ito palette, panels a/b/c,
+saved as vector PDF + PNG. cnsplots is imported only when plotting (needs Python 3.12)."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -24,7 +24,7 @@ def import_cns():
     try:
         import cnsplots as cns
     except Exception as e:   # noqa: BLE001
-        raise RuntimeError("Cần cnsplots 0.8.0 và Python 3.12 (3.13 không cài được). Xem README.") from e
+        raise RuntimeError("cnsplots 0.8.0 and Python 3.12 are required (3.13 cannot install it). See the README.") from e
     cns.settings.pvalue_format = "full"
     return cns
 
@@ -46,7 +46,7 @@ def pct_axis(ax, which="y"):
 
 
 def errorbar_h(ax, y, x, lo, hi, color=C_MAIN, hollow=None, size=3.5):
-    """Điểm + CI ngang. hollow: mảng bool đánh dấu ô nhỏ (n < ngưỡng) bằng marker rỗng."""
+    """Points + horizontal CI. hollow: boolean array marking small cells (n < threshold) with hollow markers."""
     y, x, lo, hi = map(np.asarray, (y, x, lo, hi))
     ax.hlines(y, lo, hi, color=color, lw=0.8)
     if hollow is None:
@@ -58,7 +58,7 @@ def errorbar_h(ax, y, x, lo, hi, color=C_MAIN, hollow=None, size=3.5):
 
 
 def boxes_from_percentiles(ax, df: pd.DataFrame, labels, positions=None, color=C_MAIN, horizontal=False):
-    """Vẽ hộp từ percentile đã tính (p5, p25, p50, p75, p95): whisker = p5-p95."""
+    """Draw boxes from precomputed percentiles (p5, p25, p50, p75, p95): whiskers = p5-p95."""
     stats = [{"label": l, "whislo": r["p5"], "q1": r["p25"], "med": r["p50"], "q3": r["p75"], "whishi": r["p95"], "fliers": []}
              for l, (_, r) in zip(labels, df.iterrows())]
     ax.bxp(stats, positions=positions, vert=not horizontal, showfliers=False, patch_artist=True, widths=0.6,

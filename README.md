@@ -2,94 +2,94 @@
 
 Ninh Ngọc Anh 11230734 · Bùi Thị Khánh Linh 11230756 · Nguyễn Thị Thu Phương 11230770
 
-Dữ liệu chuẩn: **HMDA 2024 One-Year National Loan-Level Dataset**, freeze date 2026-06-02,
-12,259,199 LAR records. URL và SHA-256 của LAR/TS được ghi trong `data/raw/source_manifest.json` sau khi chuẩn bị.
-Hai engine độc lập (Pandas/pyarrow và PySpark 3.5.3) chạy cùng định nghĩa; counts so chính xác, keys so dạng chuỗi,
-floats so theo tolerance. Correctness chỉ PASS khi đủ catalog đã ghim (164 raw aggregations + 67 final tables)
-và cả 30 headline bắt buộc đều có giá trị và khớp.
+Reference data: **HMDA 2024 One-Year National Loan-Level Dataset**, freeze date 2026-06-02,
+12,259,199 LAR records. The URLs and SHA-256 hashes of the LAR/TS files are recorded in `data/raw/source_manifest.json` after preparation.
+Two independent engines (Pandas/pyarrow and PySpark 3.5.3) run the same definitions; counts are compared exactly, keys as strings,
+and floats within a tolerance. Correctness only PASSES when the full pinned catalogue (164 raw aggregations + 67 final tables)
+is present and all 30 mandatory headline quantities have values and agree.
 
-## Câu hỏi nghiên cứu (theo proposal v1)
-- **Main**: tỷ lệ từ chối (trong số hồ sơ đã có quyết định) và tỷ lệ originate thay đổi thế nào theo loan type, purpose, state, lender.
-- **Q1** denial rate theo loan type × purpose, có nhất quán giữa các state không (Spearman, chuẩn hoá gián tiếp).
-- **Q2** độ phân tán denial rate giữa các lender, và trong cùng một phân khúc sản phẩm.
-- **Q3** thu nhập, loan amount, LTI, DTI, CLTV, giá trị tài sản liên quan thế nào đến denial (Cramér's V). Chỉ là association.
-- **Q4** lãi suất / rate spread của khoản vay đã originate theo loan type/purpose/lien và đặc điểm khoản vay (OLS từ ma trận chuẩn). Chỉ là association.
-- **Mở rộng dự báo (bước 11)**: denial trong nhóm đã có quyết định; chia train/val/test theo lender trước khi audit bằng outcome,
-  LR so với gradient boosting và các ablation. Đây là xếp hạng hồi cứu: một số biến có thể phản ánh giai đoạn underwriting,
-  còn lender profiles dùng cơ cấu cả năm và không được mô tả là sẵn có lúc nộp hồ sơ.
+## Research questions (per proposal v1)
+- **Main**: how do the denial rate (among decided applications) and the origination rate vary by loan type, purpose, state and lender.
+- **Q1** denial rate by loan type × purpose, and whether it is consistent across states (Spearman, indirect standardisation).
+- **Q2** dispersion of denial rates across lenders, and within a single product segment.
+- **Q3** how income, loan amount, LTI, DTI, CLTV and property value relate to denial (Cramér's V). Association only.
+- **Q4** interest rate / rate spread of originated loans by loan type/purpose/lien and loan characteristics (OLS from cross-product matrices). Association only.
+- **Predictive extension (step 11)**: denial among decided applications; train/validation/test split by lender before any outcome-based audit,
+  logistic regression vs gradient boosting and ablations. This is a retrospective ranking: some variables may reflect the underwriting stage,
+  and the lender profiles use full-year mix and are not described as available at application time.
 
-## Quy tắc dữ liệu (đã chốt)
-- **Không đọc, không dùng** các biến nhân khẩu học (tuổi, giới, chủng tộc, dân tộc, của cả đồng vay) và các cột dẫn xuất của chúng,
-  `tract_minority*`, `denial_reason`, `hoepa_status`, `purchaser_type`, `aus_`. Một "forbidden guard" (`FORBIDDEN_RE` trong `src/core/schema.py`) chặn các cột này ở cả hai engine.
-- Không dùng dữ liệu ngoài để phân tích. File TS (Transmittal Sheet) chỉ dùng để đối chiếu số dòng và gán tên/cơ quan quản lý của lender;
-  tài liệu ngoài chỉ được trích dẫn để kiểm chứng định nghĩa và đặt kết quả vào đúng bối cảnh.
-- Quy tắc làm sạch giống hệt nhau ở hai engine: xem `cleaning_rules.md`.
-- Dữ liệu giả lập (`scripts/make_synthetic.py`) chỉ để kiểm thử pipeline. Không có kết quả nào trong báo cáo được lấy từ đó.
+## Data rules (final)
+- **Never read or use** demographic variables (age, sex, race, ethnicity, including co-applicants) and their derived columns,
+  `tract_minority*`, `denial_reason`, `hoepa_status`, `purchaser_type`, `aus_`. A "forbidden guard" (`FORBIDDEN_RE` in `src/core/schema.py`) blocks these columns in both engines.
+- No external data is used for the analysis. The TS (Transmittal Sheet) file is only used to reconcile row counts and to attach lender names/regulators;
+  outside documents are only cited to verify definitions and put results in context.
+- Cleaning rules are identical in both engines: see `cleaning_rules.md`.
+- Synthetic data (`scripts/make_synthetic.py`) is only for testing the pipeline. No result in the report comes from it.
 
-## Cài đặt và dựng input (đường dẫn portable)
-1. Python **3.12**, Java **17+** (Windows cần `HADOOP_HOME`/`winutils.exe` nếu môi trường Spark yêu cầu).
-   Benchmark đi kèm được đo với OpenJDK **17.0.21**; đây là môi trường đo, không phải yêu cầu phải dùng đúng bản Java đó.
-2. `python -m venv .venv`, activate môi trường, rồi `pip install -r requirements.txt`.
-3. Tải đúng hai file 2024 One-Year từ URL chính thức dưới đây, sau đó chạy lệnh streaming; script không giải nén file text ra đĩa:
+## Installation and building the input (portable paths)
+1. Python **3.12**, Java **17+** (on Windows, `HADOOP_HOME`/`winutils.exe` if your Spark setup requires it).
+   The included benchmark was measured with OpenJDK **17.0.21**; this is the measurement environment, not a requirement to use that exact Java version.
+2. `python -m venv .venv`, activate the environment, then `pip install -r requirements.txt`.
+3. Download exactly the two 2024 One-Year files from the official URLs below, then run the streaming command; the script never extracts the text file to disk:
    ```
    python scripts/prepare_official_2024.py --lar-zip <2024_public_lar_one_year_pipe.zip> --ts-zip <2024_public_ts_one_year_pipe.zip>
    ```
    LAR: `https://files.ffiec.cfpb.gov/static-data/one-year/2024/2024_public_lar_one_year_pipe.zip`
    TS: `https://files.ffiec.cfpb.gov/static-data/one-year/2024/2024_public_ts_one_year_pipe.zip`
-4. `config.yaml` đã dùng đường dẫn tương đối `data/raw/...`; chạy `python scripts/check_env.py`.
+4. `config.yaml` already uses the relative path `data/raw/...`; run `python scripts/check_env.py`.
 
-## Chạy
+## Running
 ```
-python run.py --list                      # liệt kê các bước
-python run.py --steps all --engine both   # toàn bộ (bước 00-12)
-python run.py --steps 05                  # chỉ chạy lại một bước
+python run.py --list                      # list the steps
+python run.py --steps all --engine both   # everything (steps 00-12)
+python run.py --steps 05                  # re-run a single step
 python run.py --steps 04-07 --engine pandas
-python run.py --steps 06 --force          # bỏ qua cache
+python run.py --steps 06 --force          # ignore the cache
 ```
-Mỗi bước có manifest gồm hash config và fingerprint toàn bộ code Python, nên thay code không tái sử dụng kết quả cũ.
-Lần chạy nộp bài vẫn nên dùng `--force`; benchmark từ chối chạy nếu correctness hiện tại chưa PASS.
+Each step has a manifest containing the config hash and a fingerprint of all Python code, so changing code never reuses stale results.
+The submission run should still use `--force`; the benchmark refuses to run if the current correctness check has not PASSED.
 
-| Bước | Module | Nội dung |
+| Step | Module | Content |
 |---|---|---|
-| 00 | s00_inspect | schema, số file/dòng, đối chiếu TS |
-| 01 | s01_prepare | dựng master Parquet phân tích (cờ và band, cờ trùng lặp, khoá lấy mẫu) |
-| 02 | s02_quality | missing/status/ngoài ngưỡng, trùng lặp |
-| 03 | s03_descriptive | mô tả tổng quan |
+| 00 | s00_inspect | schema, number of files/rows, reconciliation with TS |
+| 01 | s01_prepare | build the analytical Parquet master (flags and bands, duplicate flag, sampling key) |
+| 02 | s02_quality | missing/status/out-of-domain values, duplicates |
+| 03 | s03_descriptive | descriptive overview |
 | 04–07 | s04_q1 … s07_q4 | Q1–Q4 (+ Main) |
-| 08 | s08_robustness | biến thể loại trừ (lọc truy vấn, không xoá dữ liệu) |
-| 09 | s09_correctness | so sánh mọi bảng giữa hai engine |
-| 10 | s10_benchmark | hai workload (`lender_groupby`, `median_by_state`) trên cùng Pandas-master Parquet/layout/projection cho hai engine; compute-only và read+compute; physical plan Spark |
-| 11 | s11_predictive | mở rộng dự báo |
-| 12 | s12_report_assets | hình (cnsplots) và bảng ba đường kẻ (CSV + LaTeX), `figure_captions.md` |
+| 08 | s08_robustness | exclusion variants (query filters, no data deleted) |
+| 09 | s09_correctness | compare every table between the two engines |
+| 10 | s10_benchmark | two workloads (`lender_groupby`, `median_by_state`) on the same Pandas-master Parquet/layout/projection for both engines; compute-only and read+compute; Spark physical plan |
+| 11 | s11_predictive | predictive extension |
+| 12 | s12_report_assets | figures (cnsplots) and three-line tables (CSV + LaTeX), `figure_captions.md` |
 
-Kết quả: `outputs/<engine>/raw`, `outputs/<engine>/tables`, `outputs/compare/tables`, `outputs/figures`, `outputs/tables_report`.
-Dùng cả `raw/` và `tables/` để tái kiểm tra đầy đủ claim 231/231; chỉ `tables/` thì mới kiểm tra lại được 67 final pairs.
-Dữ liệu trung gian: `data/interim`.
+Results: `outputs/<engine>/raw`, `outputs/<engine>/tables`, `outputs/compare/tables`, `outputs/figures`, `outputs/tables_report`.
+Use both `raw/` and `tables/` to fully re-check the 231/231 claim; with `tables/` only, just the 67 final pairs can be re-checked.
+Intermediate data: `data/interim`.
 
-## Benchmark (bước 10)
-- Hai workload: `lender_groupby` (đếm bản ghi, loan amount trung bình, số hồ sơ đã quyết định/từ chối và tỷ lệ từ chối theo lender) và `median_by_state` (trung vị chính xác của loan amount theo state, 55 nhóm gồm nhóm `NA`).
-- Hai kịch bản: compute-only (Spark cache và count trước khi đo) và read+compute (đo cả việc đọc Parquet, xoá cache Spark trước mỗi lần chạy).
-- Mẫu lồng nhau 25/50/100%, một lượt warm-up không tính giờ cho mỗi workload và kịch bản, 7 lần lặp có tính giờ theo thứ tự xoay có seed. Một ô được gắn nhãn "Tie / inconclusive" khi khoảng min–max của hai engine chồng nhau hoặc một engine không ổn định (max/min > 1.5). Cache của hệ điều hành không được xoá.
-- Đầu ra: `outputs/compare/tables/benchmark_summary.csv`, `benchmark_timings_raw.csv`, `benchmark_memory.csv`, `benchmark_setup_cost.csv`, `benchmark_equivalence.csv`, `outputs/tables_report/table3_benchmark.csv`, `outputs/figures/fig5_engine_benchmark.pdf`.
-- Cổng tương đương: mỗi ô của `median_by_state` được so Pandas với PySpark trước khi dùng thời gian; sáu bảng đầu ra được ghi vào `outputs/compare/benchmark_tables/` và thêm sáu dòng `kind=benchmark` vào `correctness_detail.csv`. Chạy lại bước 09 sẽ ghi đè các dòng này, khi đó phải chạy lại bước 10.
+## Benchmark (step 10)
+- Two workloads: `lender_groupby` (record count, mean loan amount, number of decided/denied applications and denial rate by lender) and `median_by_state` (exact median loan amount by state, 55 groups including the `NA` group).
+- Two scenarios: compute-only (Spark cached and counted before timing) and read+compute (includes reading Parquet, Spark cache cleared before each run).
+- Nested 25/50/100% samples, one untimed warm-up per workload and scenario, 7 timed repeats in seeded rotated order. A cell is labelled "Tie / inconclusive" when the min–max ranges of the two engines overlap or one engine is unstable (max/min > 1.5). The operating-system cache is not cleared.
+- Outputs: `outputs/compare/tables/benchmark_summary.csv`, `benchmark_timings_raw.csv`, `benchmark_memory.csv`, `benchmark_setup_cost.csv`, `benchmark_equivalence.csv`, `outputs/tables_report/table3_benchmark.csv`, `outputs/figures/fig5_engine_benchmark.pdf`.
+- Equivalence gate: every `median_by_state` cell is compared between Pandas and PySpark before timings are used; six output tables are written to `outputs/compare/benchmark_tables/` and six `kind=benchmark` rows are added to `correctness_detail.csv`. Re-running step 09 overwrites these rows, in which case step 10 must be re-run.
 
-## Hình trong báo cáo
-Các hình 0–6 do bước 12 tạo ra trong `outputs/figures/` (PDF và PNG). Hình `fig6_predictive` (mở rộng dự báo) nằm ở Phụ lục A của báo cáo và được đánh số Hình 7.
+## Figures in the report
+Figures 0–6 are produced by step 12 in `outputs/figures/` (PDF and PNG). Figure `fig6_predictive` (predictive extension) is in Appendix A of the report and numbered Figure 7.
 
-## Kiểm thử
-`pytest tests -q` (23 test, gồm 4 test cho workload `median_by_state`) kiểm tra thống kê, guard cột cấm, `income=1111/1111.0`, DTI 50/60 ở cả hai engine,
-duplicate semantics, correctness catalog/key/count/headline và end-to-end synthetic. Fixture tổng hợp có 1.200 dòng thuộc nhóm lặp và 600 bản sao dư.
-Chạy thử correctness end-to-end với dữ liệu giả lập: `python scripts/make_synthetic.py` rồi
-`python run.py --config config.test.yaml --steps 00-09 --engine both --force`. Benchmark, predictive và report assets dùng output full-data.
+## Tests
+`pytest tests -q` (23 tests, including 4 for the `median_by_state` workload) checks the statistics, the forbidden-column guard, `income=1111/1111.0`, DTI 50/60 in both engines,
+duplicate semantics, the correctness catalogue/key/count/headline checks and an end-to-end synthetic run. The synthetic fixture has 1,200 rows in repeated groups and 600 excess copies.
+To run the correctness check end-to-end on synthetic data: `python scripts/make_synthetic.py`, then
+`python run.py --config config.test.yaml --steps 00-09 --engine both --force`. Benchmark, predictive and report assets use the full-data outputs.
 
-## Quy ước quan trọng
-- `has_reported_exempt_value` là cờ record, còn `lenders_with_exempt_values` chỉ nghĩa là lender có ít nhất một record như vậy; không phải kết luận pháp lý rằng lender được miễn báo cáo.
-- `is_dup` đánh dấu mọi dòng thuộc fingerprint lặp. Baseline giữ nguyên; sensitivity loại toàn bộ nhóm lặp và báo riêng số dòng trong nhóm với số bản sao dư.
-- `~OUTSIDE_DOMAIN` nghĩa là không dùng được cho phép log/ratio/thống kê đang xét, không tự động là dữ liệu sai.
+## Key conventions
+- `has_reported_exempt_value` is a record-level flag, and `lenders_with_exempt_values` only means the lender has at least one such record; it is not a legal conclusion that the lender is exempt from reporting.
+- `is_dup` marks every row that belongs to a repeated fingerprint. The baseline keeps them; the sensitivity analysis removes all repeated groups and reports separately the number of rows in groups and the number of excess copies.
+- `~OUTSIDE_DOMAIN` means the value cannot be used for the log/ratio/statistic in question; it is not automatically wrong data.
 
-## Giới hạn cần nêu trong báo cáo
-- Hồi quy Q4 báo cả sai số chuẩn cổ điển và sai số chuẩn gom theo lender (CR1); kết luận nên đọc từ cột gom theo lender. Chỉ diễn giải là association.
-- Fingerprint lặp xác định trên các cột được phép đọc, nên chỉ là định nghĩa thực dụng; không tự động chứng minh hồ sơ trùng sai.
-- Benchmark chỉ áp dụng cho hai workload và máy này; thời gian khởi tạo Spark tách riêng.
-- Q3/Q4/dự báo không kết luận nhân quả, không đánh giá phân biệt đối xử (đã chủ động không dùng biến nhân khẩu học).
-- Predictive section là retrospective risk ranking. Lender profiles dùng cơ cấu full-year trong từng split; ablation không dùng profile được báo riêng.
+## Limitations to state in the report
+- The Q4 regressions report both classical and lender-clustered standard errors (CR1); conclusions should be read from the lender-clustered column. Interpretation is association only.
+- Repeated fingerprints are defined on the permitted columns only, so they are a practical definition; they do not automatically prove that records are wrongly duplicated.
+- The benchmark applies only to the two workloads and this machine; Spark start-up time is reported separately.
+- Q3/Q4/predictive results draw no causal conclusion and do not assess discrimination (demographic variables were deliberately not used).
+- The predictive section is a retrospective risk ranking. Lender profiles use the full-year mix within each split; the ablation without profiles is reported separately.

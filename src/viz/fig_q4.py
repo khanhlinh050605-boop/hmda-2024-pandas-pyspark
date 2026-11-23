@@ -1,4 +1,4 @@
-"""Hình 4 - Q4: lãi suất / rate spread của khoản vay đã giải ngân và hệ số hồi quy."""
+"""Figure 4 - Q4: interest rate / rate spread of originated loans and the regression coefficients."""
 from __future__ import annotations
 
 import numpy as np

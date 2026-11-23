@@ -1,11 +1,11 @@
-"""Giao diện chung của hai engine. Mọi bước phân tích chỉ gọi 4 hàm này:
+"""Common interface of the two engines. Every analysis step calls only these 4 functions:
 
-  prepare()           đọc LAR thô -> master Parquet (độc lập trong từng engine)
-  group_sum()         nhóm theo khoá, đếm dòng + cộng các cột cờ/số nguyên
-  group_moments()     nhóm theo khoá, n + tổng + tổng tích chéo (cho mean/std/Pearson/hồi quy)
-  group_percentiles() nhóm theo khoá, percentile CHÍNH XÁC (nội suy tuyến tính)
+  prepare()           read the raw LAR -> Parquet master (independently in each engine)
+  group_sum()         group by key, count rows + sum the flag/integer columns
+  group_moments()     group by key, n + sums + cross-product sums (for mean/std/Pearson/regression)
+  group_percentiles() group by key, EXACT percentiles (linear interpolation)
 
-Engine trả DataFrame nhỏ (đã gộp). Toàn bộ thống kê tiếp theo chạy trên bảng nhỏ bằng code dùng chung.
+Engines return small (aggregated) DataFrames. All later statistics run on the small tables with shared code.
 """
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ class Engine:
     def __init__(self, cfg):
         self.cfg = cfg
 
-    # ---- cần cài đặt trong lớp con
+    # ---- to be implemented in the subclass
     def prepare(self, ctx) -> dict:
         raise NotImplementedError
 
@@ -54,7 +54,7 @@ class Engine:
     def master_columns(self) -> list[str]:
         raise NotImplementedError
 
-    # ---- API công khai (chuẩn hoá đầu ra)
+    # ---- public API (normalised output)
     def group_sum(self, keys, sums=(), where=()) -> pd.DataFrame:
         keys, sums = list(keys), list(sums)
         df = self._group_sum(keys, sums, list(where))
@@ -68,5 +68,5 @@ class Engine:
     def group_percentiles(self, keys, col, probs, where=()) -> pd.DataFrame:
         keys = list(keys)
         df = self._group_percentiles(keys, col, list(probs), list(where))
-        df = df[keys + ["n_valid", "min", "max"] + [pname(p) for p in probs]]   # cùng thứ tự cột ở mọi engine
+        df = df[keys + ["n_valid", "min", "max"] + [pname(p) for p in probs]]   # same column order in every engine
         return clean_numeric(fmt_keys(df, keys), keys)

@@ -1,7 +1,7 @@
-"""Bước 04 - RQ Q1: denial rate theo loan type x purpose và state; mô hình có nhất quán giữa các state không?
+"""Step 04 - RQ Q1: denial rate by loan type x purpose and state; is the pattern consistent across states?
 
-Một "khối" đếm duy nhất (state x loan_type x purpose x lien) từ engine; mọi bảng còn lại là cộng gộp của khối này.
-State "NA" (không cung cấp vị trí): giữ ở phân tích quốc gia, loại khỏi phân tích theo state (có hồ sơ riêng).
+A single count "block" (state x loan_type x purpose x lien) from the engine; every other table is an aggregation of this block.
+State "NA" (no location provided): kept in the national analysis, excluded from the by-state analysis (profiled separately).
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ def run(ctx):
     cube = to_counts(raw_sum(ctx, "q1_cube_state_seg", ["state_code"] + FINE))
     nat_seg = aggregate(cube, FINE)
 
-    # --- quốc gia theo sản phẩm / phân khúc / loại / mục đích
+    # --- national by product / segment / type / purpose
     prod = with_rates(aggregate(cube, PRODUCT), small)
     prod["share_of_decided"] = prod["n_decided"] / prod["n_decided"].sum()
     ctx.save_table("q1_product_rates", prod)
@@ -38,14 +38,14 @@ def run(ctx):
     nat_all = aggregate(cube, [])
     ctx.save_table("q1_national_total", with_rates(nat_all, small))
 
-    # --- theo state (chỉ state có báo cáo)
+    # --- by state (reported states only)
     rep = reported_states(cube)
     st_prod = with_rates(aggregate(rep, ["state_code"] + PRODUCT), small)
     ctx.save_table("q1_state_product_rates", st_prod)
     ctx.save_table("q1_state_type_rates", with_rates(aggregate(rep, ["state_code", "loan_type"]), small))
     st_tot = with_rates(aggregate(rep, ["state_code"]), small)
 
-    # --- nhất quán: Spearman giữa tỷ lệ state và quốc gia trên các ô tin cậy (n_decided >= small)
+    # --- consistency: Spearman between state and national rates over reliable cells (n_decided >= small)
     nat_p = prod.set_index(PRODUCT)["denial_rate"]
     rows = []
     for st, g in st_prod.groupby("state_code"):
@@ -66,14 +66,14 @@ def run(ctx):
         "median_rho": float(ev["spearman_rho"].median()) if n else np.nan,
         "min_rho": float(ev["spearman_rho"].min()) if n else np.nan}]))
 
-    # --- phân tán giữa state trong từng sản phẩm (ô tin cậy)
+    # --- dispersion between states within each product (reliable cells)
     spread = []
     for key, g in st_prod[st_prod["n_decided"] >= small].groupby(PRODUCT):
         d = ST.dispersion(g["denial_rate"].values)
         spread.append({"loan_type": key[0], "loan_purpose": key[1], "national_rate": nat_p.get(key, np.nan), **d})
     ctx.save_table("q1_state_spread_by_product", pd.DataFrame(spread))
 
-    # --- chuẩn hoá gián tiếp theo state (kiểm soát cơ cấu sản phẩm)
+    # --- indirect standardisation by state (controls for product mix)
     seg_cols = FINE
     std = ST.indirect_standardise(rep, "state_code", seg_cols, ref=nat_seg)
     std = std.merge(st_tot[["state_code", "n_apps", "n_orig", "denial_rate", "denial_ci_lo", "denial_ci_hi", "small_cell"]],
@@ -84,7 +84,7 @@ def run(ctx):
     std["rank_standardised"] = std["oe_ratio"].rank(ascending=False, method="min")
     ctx.save_table("q1_state_oe", std.sort_values("oe_ratio", ascending=False))
 
-    # --- hồ sơ state "NA"
+    # --- profile of state "NA"
     na = cube[cube["state_code"] == NA_STATE]
     if len(na):
         t = with_rates(aggregate(na, []), small)

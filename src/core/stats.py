@@ -1,4 +1,4 @@
-"""Thống kê dùng chung (chỉ chạy trên bảng đã gộp nhỏ, nên giống hệt nhau cho mọi engine)."""
+"""Shared statistics (run only on small aggregated tables, so they are identical for every engine)."""
 from __future__ import annotations
 
 import numpy as np
@@ -8,9 +8,9 @@ from scipy import stats as sps
 Z95 = 1.959963984540054
 
 
-# ------------------------------------------------------------------ khoảng tin cậy
+# ------------------------------------------------------------------ confidence intervals
 def wilson(k, n, z: float = Z95):
-    """Khoảng Wilson cho tỷ lệ k/n. Trả về (p, lo, hi); n=0 -> NaN."""
+    """Wilson interval for the proportion k/n. Returns (p, lo, hi); n=0 -> NaN."""
     k = np.asarray(k, dtype=float)
     n = np.asarray(n, dtype=float)
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -25,7 +25,7 @@ def wilson(k, n, z: float = Z95):
 
 
 def garwood(k, alpha: float = 0.05):
-    """Khoảng Poisson chính xác (Garwood) cho số đếm k."""
+    """Exact Poisson interval (Garwood) for the count k."""
     k = np.asarray(k, dtype=float)
     lo = np.where(k > 0, sps.chi2.ppf(alpha / 2, 2 * np.maximum(k, 1)) / 2, 0.0)
     hi = sps.chi2.ppf(1 - alpha / 2, 2 * (k + 1)) / 2
@@ -33,7 +33,7 @@ def garwood(k, alpha: float = 0.05):
 
 
 def add_rate_ci(df: pd.DataFrame, k_col: str, n_col: str, prefix: str = "", small: int = 30) -> pd.DataFrame:
-    """Thêm rate, ci_lo, ci_hi, small_cell vào bảng đếm."""
+    """Add rate, ci_lo, ci_hi, small_cell to a count table."""
     p, lo, hi = wilson(df[k_col].values, df[n_col].values)
     df[f"{prefix}rate"] = p
     df[f"{prefix}ci_lo"] = lo
@@ -42,9 +42,9 @@ def add_rate_ci(df: pd.DataFrame, k_col: str, n_col: str, prefix: str = "", smal
     return df
 
 
-# ------------------------------------------------------------------ liên hệ
+# ------------------------------------------------------------------ association
 def cramers_v(table: np.ndarray) -> dict:
-    """Cramér's V (và bản hiệu chỉnh chệch Bergsma) từ bảng chéo r x c."""
+    """Cramér's V (and the Bergsma bias-corrected version) from an r x c cross-table."""
     t = np.asarray(table, dtype=float)
     t = t[t.sum(axis=1) > 0]
     t = t[:, t.sum(axis=0) > 0]
@@ -75,7 +75,7 @@ def spearman(x, y) -> tuple[float, int]:
 
 
 def pearson_from_moments(n, sx, sy, sxx, syy, sxy) -> float:
-    """Pearson r từ các tổng (chính xác, ghép được từ mọi engine)."""
+    """Pearson r from sums (exact, can be assembled from any engine)."""
     cov = sxy - sx * sy / n
     vx = sxx - sx * sx / n
     vy = syy - sy * sy / n
@@ -83,7 +83,7 @@ def pearson_from_moments(n, sx, sy, sxx, syy, sxy) -> float:
 
 
 def moments_to_summary(n, s, ss) -> dict:
-    """mean, std (ddof=1) từ n, tổng, tổng bình phương."""
+    """mean, std (ddof=1) from n, sum and sum of squares."""
     n = float(n)
     if n <= 0:
         return {"mean": np.nan, "std": np.nan}
@@ -92,9 +92,9 @@ def moments_to_summary(n, s, ss) -> dict:
     return {"mean": mean, "std": float(np.sqrt(max(var, 0.0))) if var == var else np.nan}
 
 
-# ------------------------------------------------------------------ phân tán
+# ------------------------------------------------------------------ dispersion
 def dispersion(values, weights=None) -> dict:
-    """Percentile chính xác (nội suy tuyến tính), IQR, mean, std (ddof=1), trung bình theo trọng số."""
+    """Exact percentiles (linear interpolation), IQR, mean, std (ddof=1), weighted mean."""
     v = np.asarray(values, dtype=float)
     v = v[np.isfinite(v)]
     out = {"n": int(v.size)}
@@ -114,11 +114,11 @@ def dispersion(values, weights=None) -> dict:
     return out
 
 
-# ------------------------------------------------------------------ chuẩn hoá gián tiếp
+# ------------------------------------------------------------------ indirect standardisation
 def indirect_standardise(df: pd.DataFrame, group_col: str | list, seg_cols: list[str],
                          n_col: str = "n_decided", k_col: str = "n_denied", ref: pd.DataFrame | None = None) -> pd.DataFrame:
-    """O/E theo nhóm, kỳ vọng từ tỷ lệ quốc gia của từng phân khúc (seg_cols). CI Garwood cho O.
-    `ref` (tuỳ chọn): bảng tham chiếu quốc gia theo seg_cols (mặc định: chính df)."""
+    """O/E by group, expected counts from the national rate of each segment (seg_cols). Garwood CI for O.
+    `ref` (optional): national reference table by seg_cols (default: df itself)."""
     nat = (ref if ref is not None else df).groupby(seg_cols, as_index=False)[[n_col, k_col]].sum()
     nat["nat_rate"] = nat[k_col] / nat[n_col]
     m = df.merge(nat[seg_cols + ["nat_rate"]], on=seg_cols, how="left")
@@ -133,26 +133,26 @@ def indirect_standardise(df: pd.DataFrame, group_col: str | list, seg_cols: list
     return g
 
 
-# ------------------------------------------------------------------ OLS từ tổng theo cell
+# ------------------------------------------------------------------ OLS from per-cell sums
 def ols_from_cells(cells: pd.DataFrame, cat_cols: list[str], cont_cols: list[str], y: str,
                    lender_cells: pd.DataFrame | None = None, cluster_col: str = "lei") -> dict:
-    """OLS với hệ số = (X'X)^-1 X'y, dựng từ tổng theo cell.
+    """OLS with coefficients = (X'X)^-1 X'y, built from per-cell sums.
 
-    `cells` có cột: các cột categorical, `n`, `sum__<c>` (mỗi biến liên tục và y),
-    `prod__<a>__<b>` cho mọi cặp a<=b trong [y]+cont_cols. Mức tham chiếu của mỗi biến
-    categorical là mức có n lớn nhất (tie -> theo thứ tự chữ cái). Sai số chuẩn kiểu cổ điển
-    (đồng nhất phương sai); với mẫu hàng triệu dòng chủ yếu để đọc độ lớn hệ số.
+    `cells` has columns: the categorical columns, `n`, `sum__<c>` (each continuous variable and y),
+    `prod__<a>__<b>` for every pair a<=b in [y]+cont_cols. The reference level of each
+    categorical variable is the level with the largest n (ties -> alphabetical order). Classical standard errors
+    (homoskedastic); with millions of rows they mainly help read coefficient magnitudes.
 
-    `lender_cells` (tuỳ chọn): cùng định dạng `cells` nhưng có thêm cột `cluster_col`. Khi có, thêm sai số chuẩn
-    cluster CR1 (hệ số KHÔNG đổi): s_l = X_l'y_l - X_l'X_l beta; V = (X'X)^-1 (sum_l s_l s_l') (X'X)^-1
-    * G/(G-1) * (N-1)/(N-K); cột se_cluster, t_cluster, ci_lo_cluster, ci_hi_cluster và G trong summary.
+    `lender_cells` (optional): same format as `cells` plus the column `cluster_col`. When given, adds
+    cluster-robust CR1 standard errors (coefficients do NOT change): s_l = X_l'y_l - X_l'X_l beta; V = (X'X)^-1 (sum_l s_l s_l') (X'X)^-1
+    * G/(G-1) * (N-1)/(N-K); columns se_cluster, t_cluster, ci_lo_cluster, ci_hi_cluster and G in the summary.
     """
     cells = cells[cells["n"] > 0].reset_index(drop=True)
     n_cell = cells["n"].to_numpy(float)
     ncell = len(cells)
     # --- dummy
     names, blocks = ["intercept"], [np.ones((ncell, 1))]
-    ref, levels = {}, []          # levels: (cột, mức) theo đúng thứ tự dummy
+    ref, levels = {}, []          # levels: (column, level) in dummy order
     ref = {}
     for c in cat_cols:
         tot = cells.groupby(c)["n"].sum().sort_index()
@@ -191,7 +191,7 @@ def ols_from_cells(cells: pd.DataFrame, cat_cols: list[str], cont_cols: list[str
         Xty[q + i] = prod(a, y).sum()
     yty = prod(y, y).sum()
     n = n_cell.sum()
-    # --- giải có tiền xử lý (chia theo căn đường chéo) để bền số
+    # --- solve with preconditioning (scaling by the square root of the diagonal) for numerical stability
     d = np.sqrt(np.diag(XtX))
     d[d == 0] = 1.0
     A = XtX / np.outer(d, d)
@@ -229,13 +229,13 @@ def ols_from_cells(cells: pd.DataFrame, cat_cols: list[str], cont_cols: list[str
 
 
 def _cluster_cr1(lc: pd.DataFrame, cells: pd.DataFrame, cat_cols, cont_cols, y, cluster_col, levels, q, beta, bread, n, p):
-    """Meat/sandwich CR1 từ tổng theo (cell x cụm). `bread` = (X'X)^-1 (thang gốc)."""
-    # chỉ giữ các (cell x cụm) thuộc cell đã dùng khi ước lượng hệ số (min_cell_n)
+    """CR1 meat/sandwich from sums by (cell x cluster). `bread` = (X'X)^-1 (original scale)."""
+    # keep only (cell x cluster) pairs whose cell was used when estimating the coefficients (min_cell_n)
     keep = cells[cat_cols].drop_duplicates()
     lc = lc[lc["n"] > 0].merge(keep, on=cat_cols, how="inner").reset_index(drop=True)
     n_l = lc["n"].to_numpy(float)
     if abs(n_l.sum() - n) > 1e-6 * max(n, 1.0):
-        raise ValueError(f"tổng n theo lender ({n_l.sum()}) khác n của hồi quy ({n})")
+        raise ValueError(f"total n by lender ({n_l.sum()}) differs from the regression n ({n})")
     m, k = len(lc), len(cont_cols)
     D = np.ones((m, q))
     for j, (c, lvl) in enumerate(levels, start=1):

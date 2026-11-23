@@ -1,4 +1,4 @@
-"""Quy tắc 'Faster method': chỉ kết luận khi khoảng min-max không chồng nhau và không có cờ không ổn định."""
+"""'Faster method' rule: conclude only when the min-max ranges do not overlap and no unstable flag is set."""
 from src.steps.s10_benchmark import TIE, decide_faster
 
 

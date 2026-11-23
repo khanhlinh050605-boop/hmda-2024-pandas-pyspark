@@ -1,4 +1,4 @@
-"""Hình 2 - Q2: phân tán denial rate giữa lender và trong từng phân khúc."""
+"""Figure 2 - Q2: dispersion of denial rates between lenders and within each segment."""
 from __future__ import annotations
 
 import numpy as np

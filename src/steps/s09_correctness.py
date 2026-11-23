@@ -1,10 +1,10 @@
-"""Bước 09 - Đối chiếu Pandas với PySpark (đề bài 3.4C).
+"""Step 09 - Compare Pandas with PySpark (brief 3.4C).
 
-So từng bảng thô (kết quả của engine) và từng bảng kết quả cuối (tính tiếp bằng code dùng chung):
-  - số nguyên (đếm): phải TRÙNG TUYỆT ĐỐI;
-  - số thực: np.isclose với rtol/atol trong config (mặc định 1e-9); không nới dung sai để "cho khớp";
-  - chuỗi/khoá: phải trùng tuyệt đối, cùng thứ tự dòng.
-Mọi chênh lệch đều được liệt kê (correctness_mismatches.csv) để điều tra, không bị che.
+Compares every raw table (engine output) and every final result table (computed further with shared code):
+  - integers (counts): must match EXACTLY;
+  - floats: np.isclose with the rtol/atol from the config (default 1e-9); tolerances are never loosened to "make it match";
+  - strings/keys: must match exactly, in the same row order.
+Every difference is listed (correctness_mismatches.csv) for investigation and is never hidden.
 """
 from __future__ import annotations
 
@@ -186,7 +186,7 @@ def run(ctx):
     ctx.save_table("correctness_detail", det)
     ctx.save_table("correctness_mismatches", pd.DataFrame(mism_all, columns=["table", "row", "column", "pandas", "spark"]))
 
-    # --- bảng đối chiếu theo mẫu đề bài: đại lượng | Pandas | PySpark | khớp? | giải thích
+    # --- comparison table in the format of the brief: quantity | Pandas | PySpark | agree? | explanation
     def tab(engine, name):
         p = cfg.engine_out(engine) / "tables" / f"{name}.csv"
         return pd.read_csv(p) if p.exists() else pd.DataFrame()
@@ -267,7 +267,7 @@ def run(ctx):
 
     n_tab = len(det)
     n_ok = int(det["agree"].sum())
-    log.info("[s09] %d/%d bảng khớp (%d ô lệch). Headline: %d/%d đại lượng khớp", n_ok, n_tab,
+    log.info("[s09] %d/%d tables agree (%d mismatching cells). Headline: %d/%d quantities agree", n_ok, n_tab,
              int(len(mism_all)), int(head["agree"].sum()) if len(head) else 0, len(head))
     n_head_ok = int(head["agree"].sum()) if len(head) else 0
     all_ok = validation_passes(det, head)

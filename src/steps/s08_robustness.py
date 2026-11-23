@@ -1,7 +1,7 @@
-"""Bước 08 - Kiểm tra độ bền: chạy lại kết quả khi loại
-(a) record có ít nhất một giá trị Exempt, (b) lender có ít nhất một record như vậy,
-(c) mọi dòng thuộc fingerprint lặp, (d) khoản vay mục đích kinh doanh, (e) tất cả.
-Không xoá dữ liệu: mỗi variant chỉ là bộ lọc áp dụng lúc truy vấn.
+"""Step 08 - Robustness check: re-run the results when excluding
+(a) records with at least one Exempt value, (b) lenders with at least one such record,
+(c) every row in a repeated fingerprint group, (d) business-purpose loans, (e) all of them.
+No data is deleted: each variant is just a filter applied at query time.
 """
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ def run(ctx):
                "national_denial_rate": nat, "lenders_eligible": int(len(el)), "lender_rate_median": d.get("p50"),
                "lender_rate_p5": d.get("p5"), "lender_rate_p95": d.get("p95"), "lender_rate_iqr": d.get("iqr"),
                "lender_rate_std": d.get("std")}
-        # tỷ lệ theo loại khoản vay (Q1)
+        # rates by loan type (Q1)
         lt = aggregate(cube, ["loan_type"])
         for r in lt.itertuples():
             row[f"denial_rate_loan_type_{r.loan_type}"] = r.n_denied / r.n_decided if r.n_decided else np.nan
@@ -48,7 +48,7 @@ def run(ctx):
             band_col = Q3_VARS[var][0]
             c3 = to_counts(raw_sum(ctx, f"rb_{vname}_q3_{var}", [band_col] + FINE, ["is_decided", "is_denied"], where=w))
             row[f"V_{var}"] = _v(c3, band_col, defs.valid_labels(band_col))
-        # lãi suất trung vị theo loại khoản vay (Q4)
+        # median interest rate by loan type (Q4)
         p = raw_pct(ctx, f"rb_{vname}_rate_by_type", ["loan_type"], "interest_rate", [0.5],
                     where=w + ["is_orig", "v_interest_rate"])
         for r in p.itertuples():

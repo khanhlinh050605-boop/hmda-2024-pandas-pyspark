@@ -1,6 +1,6 @@
-"""Engine PySpark: prepare + các truy vấn gộp trên master Parquet. Cài đặt độc lập với Pandas.
+"""PySpark engine: prepare + grouped queries on the Parquet master. Implemented independently of Pandas.
 
-Dùng select / withColumn / filter / groupBy / agg / join / window (row_number) của Spark DataFrame.
+Uses the Spark DataFrame select / withColumn / filter / groupBy / agg / join / window (row_number) operations.
 """
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ def _as_cond(F, where):
     return cond
 
 
-# ------------------------------------------------------------------ biểu thức làm sạch
+# ------------------------------------------------------------------ cleaning expressions
 def num_status(F, name: str, field: str):
     s = F.regexp_replace(F.col(name), r"^\s+|\s+$", "")
     up = F.upper(s)
@@ -99,7 +99,7 @@ def dti_numeric_band_expr(F, val):
 
 
 def build_master(F, df, cfg, defs: Defs, regex: str):
-    """df: cột đã chọn, tên chuẩn, kiểu chuỗi, cộng `_file` và `row_hash`."""
+    """df: selected columns, canonical names, string type, plus `_file` and `row_hash`."""
     plaus = cfg["plausibility"]
     seed = int(cfg["project"]["seed"]) % MOD
     cols = {}
@@ -151,7 +151,7 @@ def build_master(F, df, cfg, defs: Defs, regex: str):
                                                              F.col("property_value_status"),
                                                              defs.edges["property_value_band"],
                                                              defs.labels["property_value_band"]))
-    # log, năm, bin
+    # log, year, bin
     d = d.withColumn("log_loan_amount", F.when(F.col("v_loan_amount"), F.log(F.col("loan_amount"))))
     d = d.withColumn("log_income", F.when(F.col("v_income"), F.log(F.col("income"))))
     d = d.withColumn("log_property_value", F.when(F.col("v_property_value"), F.log(F.col("property_value"))))
@@ -268,7 +268,7 @@ class SparkEngine(Engine):
         # broadcast duplicate join preserves the source partitioning, so a
         # narrow coalesce is sufficient for the requested file count.
         out.coalesce(int(cfg["spark"]["master_files"])).write.mode("overwrite").parquet(master.as_posix())
-        # thống kê sau khi ghi
+        # statistics after writing
         mm = spark.read.parquet(master.as_posix())
         n_rows = mm.count()
         ex = collect_pandas(mm.filter(F.col("has_reported_exempt_value") == 1).select("lei").distinct()).sort_values("lei")
@@ -281,11 +281,11 @@ class SparkEngine(Engine):
         shutil.rmtree(dup_path, ignore_errors=True)
         return meta
 
-    # ---------------------------------------------------------------- truy vấn
+    # ---------------------------------------------------------------- queries
     def open(self, ctx) -> None:
         d = ctx.master_dir()
         if not d.exists():
-            raise FileNotFoundError(f"Chưa có master Spark ở {d}. Chạy bước 01 trước.")
+            raise FileNotFoundError(f"No Spark master at {d}. Run step 01 first.")
         self.df = self._spark().read.parquet(d.as_posix())
         self._ctx = ctx
 

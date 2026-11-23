@@ -1,4 +1,4 @@
-"""Ngữ cảnh chạy (Ctx), ghi bảng thô/bảng kết quả, manifest để chạy lại từng bước, log."""
+"""Run context (Ctx), writing of raw/result tables, manifests for re-running single steps, logging."""
 from __future__ import annotations
 
 import json
@@ -22,7 +22,7 @@ def setup_logging(verbose: bool = True) -> None:
 
 
 class Ctx:
-    """Mọi bước nhận một Ctx: cfg + engine (hoặc None) + nơi ghi kết quả."""
+    """Every step receives a Ctx: cfg + engine (or None) + where to write results."""
 
     def __init__(self, cfg: Cfg, engine=None, name: str = "shared"):
         self.cfg = cfg
@@ -37,7 +37,7 @@ class Ctx:
         self.lists: dict[str, list] = {}
         self._load_lists()
 
-    # ---- danh sách phụ do bước prepare tạo
+    # ---- auxiliary lists created by the prepare step
     def master_dir(self) -> Path:
         return self.cfg.interim_dir / f"{self.name}_master"
 
@@ -56,16 +56,16 @@ class Ctx:
     def where(self, items) -> list[tuple]:
         return resolve_where(items, self.lists)
 
-    # ---- ghi kết quả
+    # ---- write results
     def save_raw(self, name: str, df: pd.DataFrame, keys: list[str]) -> pd.DataFrame:
-        """Bảng thô từ engine: sẽ được đối chiếu Pandas-Spark ở bước correctness."""
+        """Raw table from an engine: compared between Pandas and Spark in the correctness step."""
         path = self.raw_dir / f"{name}.csv"
         df.to_csv(path, index=False, float_format="%.17g")
         (self.raw_dir / f"{name}.meta.json").write_text(json.dumps({"keys": keys, "rows": int(len(df))}))
         return df
 
     def save_table(self, name: str, df: pd.DataFrame, index: bool = False) -> pd.DataFrame:
-        """Bảng kết quả cuối (đã có tỷ lệ, CI...). Cũng được đối chiếu."""
+        """Final result table (with rates, CIs...). Also compared."""
         path = self.tab_dir / f"{name}.csv"
         df.to_csv(path, index=index, float_format="%.17g")
         return df
@@ -77,7 +77,7 @@ class Ctx:
 
 
 class Manifest:
-    """Ghi lại bước nào đã xong với hash cấu hình; chạy lại chỉ khi đổi cấu hình hoặc --force."""
+    """Record which step finished with the config hash; re-run only when the config changes or with --force."""
 
     def __init__(self, path: Path):
         self.path = path
@@ -94,7 +94,7 @@ class Manifest:
 
 
 def fmt_keys(df: pd.DataFrame, keys: list[str]) -> pd.DataFrame:
-    """Ép khoá về chuỗi, sắp xếp ổn định: để hai engine ra bảng cùng thứ tự."""
+    """Cast keys to string and sort stably so both engines produce tables in the same order."""
     df = df.copy()
     for k in keys:
         df[k] = df[k].astype(str)

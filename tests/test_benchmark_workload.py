@@ -1,4 +1,4 @@
-"""Workload 2 của benchmark: trung vị chính xác loan_amount theo state_code (chuỗi 'NA' là một nhóm riêng)."""
+"""Benchmark workload 2: exact median loan_amount by state_code (the string 'NA' is a separate group)."""
 import numpy as np
 import pandas as pd
 import pytest
@@ -15,11 +15,11 @@ def _df():
 def test_pandas_state_workload_exact_median_and_na_kept():
     d = _df()
     r = pandas_state_workload(d)
-    assert r["state_code"].tolist() == ["AK", "CA", "NA", "TX"]          # sắp xếp, 'NA' giữ nguyên là nhóm
+    assert r["state_code"].tolist() == ["AK", "CA", "NA", "TX"]          # sorted; 'NA' stays a group
     for _, row in r.iterrows():
         x = d.loc[d.state_code == row["state_code"], "loan_amount"].to_numpy()
         assert row["n_records"] == len(x)
-        assert row["median_loan_amount"] == np.percentile(x, 50)        # nội suy tuyến tính, chính xác
+        assert row["median_loan_amount"] == np.percentile(x, 50)        # linear interpolation, exact
     assert int(r["n_records"].sum()) == len(d)
 
 
@@ -47,7 +47,7 @@ def test_equivalence_gate_detects_differences():
     assert not equivalent_state(a, b)["counts_equal"]
     b = a.copy(); b.loc[1, "state_code"] = "NaN"
     assert not equivalent_state(a, b)["same_lenders"]
-    b = a.copy(); b.loc[1, "median_loan_amount"] = 200.0 * (1 + 5e-10)       # trong |a-b| <= 1e-9 + 1e-9|b|
+    b = a.copy(); b.loc[1, "median_loan_amount"] = 200.0 * (1 + 5e-10)       # within |a-b| <= 1e-9 + 1e-9|b|
     assert equivalent_state(a, b)["floats_close"]
 
 

@@ -1,9 +1,9 @@
-"""Bước 12 - Hình và bảng cho báo cáo.
+"""Step 12 - Figures and tables for the report.
 
-Hình: cnsplots (Week 9 sec. 2-4): multipanel 183 mm, Okabe-Ito, PDF vector + PNG, panel a/b/c, mỗi hình có tiêu đề/trục/đơn vị
-và chú thích 4 phần (claim | panels | statistics | n & unit) trong figure_captions.md. Câu 'Observed' sinh tự động từ số liệu.
-Bảng: ba đường kẻ (booktabs), đơn vị ở tiêu đề cột, cùng số chữ số thập phân; xuất CSV + LaTeX (tiêu đề đặt TRÊN bảng).
-Số liệu vẽ lấy từ engine cấu hình ở figures.engine_for_figures (hai engine đã được chứng minh trùng khớp ở bước 09).
+Figures: cnsplots (Week 9 sec. 2-4): 183 mm multipanel, Okabe-Ito, vector PDF + PNG, panels a/b/c, each figure has a title/axes/units
+and a 4-part caption (claim | panels | statistics | n & unit) in figure_captions.md. The 'Observed' sentence is generated automatically from the data.
+Tables: three-line (booktabs), units in the column headers, consistent decimals; exported as CSV + LaTeX (caption ABOVE the table).
+Plotted data come from the engine set in figures.engine_for_figures (the two engines were shown to agree in step 09).
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ FIGS = [("fig0_data_quality", "fig_data"), ("fig1_q1_products_states", "fig_q1")
         ("fig6_predictive", "fig_pred")]
 
 
-# ------------------------------------------------------------------ bảng ba đường kẻ
+# ------------------------------------------------------------------ three-line tables
 def _fmt(v):
     if isinstance(v, (bool, np.bool_)):
         return "yes" if v else "no"
@@ -52,7 +52,7 @@ def three_line(df: pd.DataFrame, caption: str, label: str, note: str = "", fit: 
     for _, r in df.iterrows():
         out.append(" & ".join(_tex(_fmt(r[c])) for c in cols) + r" \\")
     out += [r"\bottomrule", r"\end{tabular}" + ("}" if fit else "")]
-    out = [ln for ln in out if ln != r"\relax"]      # bảng không `fit` giữ nguyên đầu ra cũ
+    out = [ln for ln in out if ln != r"\relax"]      # tables without `fit` keep the old output
     if note:
         out.append(r"\par\footnotesize " + _tex(note))
     out.append(r"\end{table}")
@@ -76,9 +76,9 @@ def run(ctx):
                 df = pd.read_csv(p, keep_default_na=False, na_values=[""], dtype={"loan_type": str, "loan_purpose": str,
                                  "lien_status": str, "state_code": str, "is_denied": str, "lei": str})
                 return df
-        raise FileNotFoundError(f"Thiếu bảng {name}.csv (chạy bước tương ứng trước)")
+        raise FileNotFoundError(f"Missing table {name}.csv (run the corresponding step first)")
 
-    # ---------------- bảng
+    # ---------------- tables
     specs = []
 
     def spec(name, caption, builder, note="", fit=False):
@@ -89,7 +89,7 @@ def run(ctx):
             (tdir / f"{name}.tex").write_text(three_line(df, caption, name, note, fit))
             specs.append(name)
         except FileNotFoundError as e:
-            log.info("[s12] bỏ qua %s: %s", name, e)
+            log.info("[s12] skipping %s: %s", name, e)
 
     def t_overview():
         ov = pd.read_csv(cfg.out_dir / "compare" / "overview.csv")
@@ -165,7 +165,7 @@ def run(ctx):
     spec("table8_predictive", "Predictive extension: held-out-lender performance", t_pred, "Lender-grouped split.")
     spec("table9_robustness", "Robustness of headline results to exclusions", t_rob)
 
-    # ---------------- hình
+    # ---------------- figures
     cns = import_cns()
     caps, fails = [], []
     for stem, mod in FIGS:
@@ -173,9 +173,9 @@ def run(ctx):
             m = importlib.import_module(f"src.viz.{mod}")
             info = m.build(cns, T, out, cfg)
             caps.append((stem, info))
-            log.info("[s12] đã vẽ %s", stem)
+            log.info("[s12] drew %s", stem)
         except FileNotFoundError as e:
-            log.info("[s12] bỏ qua %s: %s", stem, e)
+            log.info("[s12] skipping %s: %s", stem, e)
         except Exception as e:   # noqa: BLE001
             traceback.print_exc()
             fails.append((stem, str(e)))
@@ -189,5 +189,5 @@ def run(ctx):
         lines.append("")
     (out / "figure_captions.md").write_text("\n".join(lines))
     if fails:
-        raise RuntimeError(f"Vẽ lỗi: {fails}")
+        raise RuntimeError(f"Plotting failed: {fails}")
     return {"figures": [s for s, _ in caps], "tables": specs}

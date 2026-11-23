@@ -1,6 +1,6 @@
-"""Định nghĩa dùng chung cho cả hai engine: band, nhãn, miền hợp lý, quy tắc where.
+"""Definitions shared by both engines: bands, labels, plausible domains, where-rules.
 
-Mọi định nghĩa chỉ nằm ở đây (và config.yaml) để Pandas và Spark không thể lệch nhau.
+Every definition lives only here (and in config.yaml) so Pandas and Spark cannot diverge.
 """
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from .schema import MISSING
 
 STATUS_BANDS = ["~NA", "~EXEMPT", "~EMPTY", "~UNPARSABLE", "~OUTSIDE_DOMAIN"]
 
-# DTI dạng band chữ trong HMDA (sau khi bỏ '%' và khoảng trắng) -> nhãn chuẩn
+# DTI as a text band in HMDA (after removing '%' and spaces) -> canonical label
 DTI_TEXT_MAP = {"<20": "<20", "20-<30": "20-<30", "30-<36": "30-<36", "50-60": "50-60", ">60": ">60"}
 
 
@@ -23,7 +23,7 @@ def dti_band_numpy(values):
         default=">60",
     ).astype(object)
 
-# Biến Q3 -> (cột band trong master, cột giá trị, tên hiển thị)
+# Q3 variable -> (band column in the master, value column, display name)
 Q3_VARS = {
     "income":         ("income_band", "income", "Income (USD thousand)"),
     "loan_amount":    ("loan_amount_band", "loan_amount", "Loan amount (USD)"),
@@ -53,7 +53,7 @@ def make_labels(edges, unit: str = "plain") -> list[str]:
 
 
 class Defs:
-    """Đọc config và dựng toàn bộ nhãn, thứ tự band."""
+    """Read the config and build all labels and band orders."""
 
     def __init__(self, cfg):
         self.cfg = cfg
@@ -90,7 +90,7 @@ def in_range_spec(spec: dict) -> tuple[float, float, bool]:
 
 
 def normalize_where(where) -> list[tuple]:
-    """where: danh sách phần tử là tên cột cờ (==1) hoặc (cột, toán_tử, giá_trị)."""
+    """where: list of items that are flag column names (==1) or (column, operator, value)."""
     out = []
     for w in where or []:
         if isinstance(w, str):
@@ -102,7 +102,7 @@ def normalize_where(where) -> list[tuple]:
 
 
 def resolve_where(where, ctx_lists: dict) -> list[tuple]:
-    """Thay '@tên' bằng danh sách thật (vd. @lenders_with_exempt_values)."""
+    """Replace '@name' with the real list (e.g. @lenders_with_exempt_values)."""
     res = []
     for c, op, v in normalize_where(where):
         if isinstance(v, str) and v.startswith("@"):
