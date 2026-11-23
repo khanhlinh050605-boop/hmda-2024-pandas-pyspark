@@ -1,0 +1,32 @@
+[
+  {
+    "workload": "lender_groupby",
+    "fraction": 1.0,
+    "physical_plan": "*(1) Project [lei#4620, loan_amount#4632, is_decided#4676, is_denied#4677]\n+- *(1) Filter (isnotnull(sample_u#4688) AND (sample_u#4688 < 1.0))\n   +- *(1) ColumnarToRow\n      +- FileScan parquet [lei#4620,loan_amount#4632,is_decided#4676,is_denied#4677,sample_u#4688] Batched: true, DataFilters: [isnotnull(sample_u#4688), (sample_u#4688 < 1.0)], Format: Parquet, Location: InMemoryFileIndex(1 paths)[file:/C:/Users/Linhh/Videos/hmda_g5_v3/hmda_g5_submit/data/interim/pan..., PartitionFilters: [], PushedFilters: [IsNotNull(sample_u), LessThan(sample_u,1.0)], ReadSchema: struct<lei:string,loan_amount:double,is_decided:tinyint,is_denied:tinyint,sample_u:double>\n"
+  },
+  {
+    "workload": "lender_groupby",
+    "fraction": 0.5,
+    "physical_plan": "*(1) Project [lei#4812, loan_amount#4824, is_decided#4868, is_denied#4869]\n+- *(1) Filter (isnotnull(sample_u#4880) AND (sample_u#4880 < 0.5))\n   +- *(1) ColumnarToRow\n      +- FileScan parquet [lei#4812,loan_amount#4824,is_decided#4868,is_denied#4869,sample_u#4880] Batched: true, DataFilters: [isnotnull(sample_u#4880), (sample_u#4880 < 0.5)], Format: Parquet, Location: InMemoryFileIndex(1 paths)[file:/C:/Users/Linhh/Videos/hmda_g5_v3/hmda_g5_submit/data/interim/pan..., PartitionFilters: [], PushedFilters: [IsNotNull(sample_u), LessThan(sample_u,0.5)], ReadSchema: struct<lei:string,loan_amount:double,is_decided:tinyint,is_denied:tinyint,sample_u:double>\n"
+  },
+  {
+    "workload": "lender_groupby",
+    "fraction": 0.25,
+    "physical_plan": "*(1) Project [lei#5004, loan_amount#5016, is_decided#5060, is_denied#5061]\n+- *(1) Filter (isnotnull(sample_u#5072) AND (sample_u#5072 < 0.25))\n   +- *(1) ColumnarToRow\n      +- FileScan parquet [lei#5004,loan_amount#5016,is_decided#5060,is_denied#5061,sample_u#5072] Batched: true, DataFilters: [isnotnull(sample_u#5072), (sample_u#5072 < 0.25)], Format: Parquet, Location: InMemoryFileIndex(1 paths)[file:/C:/Users/Linhh/Videos/hmda_g5_v3/hmda_g5_submit/data/interim/pan..., PartitionFilters: [], PushedFilters: [IsNotNull(sample_u), LessThan(sample_u,0.25)], ReadSchema: struct<lei:string,loan_amount:double,is_decided:tinyint,is_denied:tinyint,sample_u:double>\n"
+  },
+  {
+    "workload": "median_by_state",
+    "fraction": 0.25,
+    "physical_plan": "*(1) Project [state_code#13334, loan_amount#13344]\n+- *(1) Filter (isnotnull(sample_u#13400) AND (sample_u#13400 < 0.25))\n   +- *(1) ColumnarToRow\n      +- FileScan parquet [state_code#13334,loan_amount#13344,sample_u#13400] Batched: true, DataFilters: [isnotnull(sample_u#13400), (sample_u#13400 < 0.25)], Format: Parquet, Location: InMemoryFileIndex(1 paths)[file:/C:/Users/Linhh/Videos/hmda_g5_v3/hmda_g5_submit/data/interim/pan..., PartitionFilters: [], PushedFilters: [IsNotNull(sample_u), LessThan(sample_u,0.25)], ReadSchema: struct<state_code:string,loan_amount:double,sample_u:double>\n"
+  },
+  {
+    "workload": "median_by_state",
+    "fraction": 0.5,
+    "physical_plan": "*(1) Project [state_code#13585, loan_amount#13595]\n+- *(1) Filter (isnotnull(sample_u#13651) AND (sample_u#13651 < 0.5))\n   +- *(1) ColumnarToRow\n      +- FileScan parquet [state_code#13585,loan_amount#13595,sample_u#13651] Batched: true, DataFilters: [isnotnull(sample_u#13651), (sample_u#13651 < 0.5)], Format: Parquet, Location: InMemoryFileIndex(1 paths)[file:/C:/Users/Linhh/Videos/hmda_g5_v3/hmda_g5_submit/data/interim/pan..., PartitionFilters: [], PushedFilters: [IsNotNull(sample_u), LessThan(sample_u,0.5)], ReadSchema: struct<state_code:string,loan_amount:double,sample_u:double>\n"
+  },
+  {
+    "workload": "median_by_state",
+    "fraction": 1.0,
+    "physical_plan": "*(1) Project [state_code#13836, loan_amount#13846]\n+- *(1) Filter (isnotnull(sample_u#13902) AND (sample_u#13902 < 1.0))\n   +- *(1) ColumnarToRow\n      +- FileScan parquet [state_code#13836,loan_amount#13846,sample_u#13902] Batched: true, DataFilters: [isnotnull(sample_u#13902), (sample_u#13902 < 1.0)], Format: Parquet, Location: InMemoryFileIndex(1 paths)[file:/C:/Users/Linhh/Videos/hmda_g5_v3/hmda_g5_submit/data/interim/pan..., PartitionFilters: [], PushedFilters: [IsNotNull(sample_u), LessThan(sample_u,1.0)], ReadSchema: struct<state_code:string,loan_amount:double,sample_u:double>\n"
+  }
+]

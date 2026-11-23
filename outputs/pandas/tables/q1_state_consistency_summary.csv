@@ -1,0 +1,2 @@
+states_reported,states_evaluated,states_consistent,share_consistent,wilson_lo,wilson_hi,rho_threshold,median_rho,min_rho
+54,52,51,0.98076923076923073,0.89879488872107738,0.99659719192905472,0.69999999999999996,0.91208791208791207,0.66071428571428559

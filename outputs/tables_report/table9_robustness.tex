@@ -1,0 +1,18 @@
+\begin{table}[t]
+\centering
+\caption{Robustness of headline results to exclusions}
+\label{tab:table9_robustness}
+\small
+\begin{tabular}{lrrrrrrrr}
+\toprule
+variant & n\_records & n\_decided & national\_denial\_rate & lenders\_eligible & lender\_rate\_median & lender\_rate\_p5 & lender\_rate\_p95 & lender\_rate\_iqr \\
+\midrule
+baseline & 12,259,199 & 8,661,779 & 0.243 & 3,180 & 0.117 & 0.012 & 0.410 & 0.162 \\
+exclude\_records\_with\_exempt\_values & 11,962,960 & 8,405,708 & 0.246 & 2,293 & 0.132 & 0.011 & 0.432 & 0.182 \\
+exclude\_lenders\_with\_exempt\_values & 11,936,086 & 8,383,646 & 0.247 & 2,251 & 0.132 & 0.011 & 0.433 & 0.182 \\
+exclude\_all\_repeated\_fingerprint\_rows & 12,188,337 & 8,632,574 & 0.242 & 3,163 & 0.118 & 0.012 & 0.410 & 0.162 \\
+exclude\_business & 11,599,722 & 8,170,177 & 0.246 & 3,081 & 0.121 & 0.013 & 0.410 & 0.164 \\
+all\_combined & 11,238,882 & 7,883,118 & 0.248 & 2,161 & 0.140 & 0.013 & 0.431 & 0.186 \\
+\bottomrule
+\end{tabular}
+\end{table}

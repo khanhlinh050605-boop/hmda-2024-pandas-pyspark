@@ -1,0 +1,50 @@
+{
+  "population_n": 6056746,
+  "rows_used": 2000203,
+  "features_kept": [
+    "loan_type",
+    "loan_purpose",
+    "lien_status",
+    "occupancy_type",
+    "state_code",
+    "dti_band",
+    "construction_method",
+    "total_units",
+    "log_loan_amount",
+    "log_income",
+    "cltv",
+    "term_years",
+    "log_property_value",
+    "lender_log_apps",
+    "lender_share_loan_type_1",
+    "lender_share_loan_type_2",
+    "lender_share_purpose_1",
+    "lender_share_purpose_31",
+    "lender_share_purpose_32",
+    "lender_share_purpose_4"
+  ],
+  "features_dropped_leakage": [],
+  "profile_features": [
+    "lender_log_apps",
+    "lender_share_loan_type_1",
+    "lender_share_loan_type_2",
+    "lender_share_purpose_1",
+    "lender_share_purpose_31",
+    "lender_share_purpose_32",
+    "lender_share_purpose_4"
+  ],
+  "profile_timing": "retrospective full-year lender mix within each split",
+  "split_rows": {
+    "test": 396958,
+    "train": 1200389,
+    "val": 402856
+  },
+  "test_roc_auc": {
+    "Training-prior (no features)": 0.5,
+    "LR product-only": 0.6749633710777171,
+    "LR full, no lender profiles": 0.7932773993292046,
+    "LR full": 0.8018888441775405,
+    "Gradient boosting, no lender profiles": 0.8441366100099172,
+    "Gradient boosting": 0.8542403030874894
+  }
+}

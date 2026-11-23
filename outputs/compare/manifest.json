@@ -1,0 +1,37 @@
+{
+  "s00_inspect": {
+    "status": "done",
+    "cfg_hash": "1364109c47cc",
+    "seconds": 1.54,
+    "finished": "2026-11-21 12:48:10",
+    "note": ""
+  },
+  "s09_correctness": {
+    "status": "done",
+    "cfg_hash": "11f69e39c5a3",
+    "seconds": 11.69,
+    "finished": "2026-11-21 14:08:29",
+    "note": ""
+  },
+  "s10_benchmark": {
+    "status": "done",
+    "cfg_hash": "ee02212c30e2",
+    "seconds": 478.4,
+    "finished": "2026-11-21 14:16:28",
+    "note": ""
+  },
+  "s11_predictive": {
+    "status": "done",
+    "cfg_hash": "d85c8f27966a",
+    "seconds": 271.78,
+    "finished": "2026-11-21 13:09:31",
+    "note": ""
+  },
+  "s12_report_assets": {
+    "status": "done",
+    "cfg_hash": "0884b423cb45",
+    "seconds": 21.04,
+    "finished": "2026-11-21 14:16:50",
+    "note": ""
+  }
+}

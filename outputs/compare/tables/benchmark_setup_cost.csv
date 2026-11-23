@@ -1,0 +1,4 @@
+item,median_s,runs
+import_pandas_s,0.48101060000772122,3
+spark_session_start_s,2.6469644000026165,3
+first_spark_action_s,3.0384235999954399,3

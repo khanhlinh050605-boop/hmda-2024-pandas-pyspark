@@ -1,0 +1,17 @@
+\begin{table}[t]
+\centering
+\caption{Pandas and PySpark outputs compared}
+\label{tab:table7_correctness}
+\small
+\begin{tabular}{lrrrrr}
+\toprule
+Quantity & Pandas & PySpark & Difference & Tolerance & Conclusion \\
+\midrule
+decided applications (action 1-3) & 8,661,779 & 8,661,779 & 0.000 & exact & PASS \\
+national denial rate among decided & 0.243 & 0.243 & 0.000 & rtol=1e-09, atol=1e-09 & PASS \\
+interest\_rate: median (exact percentile) & 6.875 & 6.875 & 0.000 & rtol=1e-09, atol=1e-09 & PASS \\
+regression (interest\_rate) coefficient: loan\_type[2] & -0.540 & -0.540 & -0.000 & rtol=1e-09, atol=1e-09 & PASS \\
+\bottomrule
+\end{tabular}
+\par\footnotesize Counts exact; floats rtol = atol = 1e-9.
+\end{table}

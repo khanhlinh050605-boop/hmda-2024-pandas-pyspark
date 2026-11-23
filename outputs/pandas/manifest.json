@@ -1,0 +1,58 @@
+{
+  "s01_prepare": {
+    "status": "done",
+    "cfg_hash": "a5e58d4019f9",
+    "seconds": 299.62,
+    "finished": "2026-11-21 12:53:10",
+    "note": ""
+  },
+  "s02_quality": {
+    "status": "done",
+    "cfg_hash": "9fbcb028240f",
+    "seconds": 40.4,
+    "finished": "2026-11-21 12:55:48",
+    "note": ""
+  },
+  "s03_descriptive": {
+    "status": "done",
+    "cfg_hash": "db001183c8d4",
+    "seconds": 24.16,
+    "finished": "2026-11-21 12:56:44",
+    "note": ""
+  },
+  "s04_q1": {
+    "status": "done",
+    "cfg_hash": "2d04da7fe080",
+    "seconds": 4.75,
+    "finished": "2026-11-21 12:57:08",
+    "note": ""
+  },
+  "s05_q2": {
+    "status": "done",
+    "cfg_hash": "0cca030d2017",
+    "seconds": 4.82,
+    "finished": "2026-11-21 12:57:14",
+    "note": ""
+  },
+  "s06_q3": {
+    "status": "done",
+    "cfg_hash": "db001183c8d4",
+    "seconds": 22.27,
+    "finished": "2026-11-21 12:57:38",
+    "note": ""
+  },
+  "s07_q4": {
+    "status": "done",
+    "cfg_hash": "6790d03afacf",
+    "seconds": 45.87,
+    "finished": "2026-11-21 12:58:32",
+    "note": ""
+  },
+  "s08_robustness": {
+    "status": "done",
+    "cfg_hash": "453f287cd604",
+    "seconds": 41.77,
+    "finished": "2026-11-21 12:59:44",
+    "note": ""
+  }
+}

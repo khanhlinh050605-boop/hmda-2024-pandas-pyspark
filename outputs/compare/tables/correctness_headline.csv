@@ -1,0 +1,31 @@
+id,quantity,pandas,pyspark,difference,tolerance,conclusion,agree,explanation
+master_n_rows,master: n_rows,12259199,12259199,0,exact,PASS,True,exact integer match
+master_n_dup_rows,master: n_dup_rows,70862,70862,0,exact,PASS,True,exact integer match
+master_n_excess_dup_rows,master: n_excess_dup_rows,39641,39641,0,exact,PASS,True,exact integer match
+master_lenders_with_exempt_values,master: lenders_with_exempt_values,2048,2048,0,exact,PASS,True,exact integer match
+records_after_preparation,records after preparation (all action_taken),12259199,12259199,0,exact,PASS,True,exact integer match
+action_1,records with action_taken=1 (originated),6197085,6197085,0,exact,PASS,True,exact integer match
+action_3,records with action_taken=3 (denied),2103462,2103462,0,exact,PASS,True,exact integer match
+decided_applications,decided applications (action 1-3),8661779,8661779,0,exact,PASS,True,exact integer match
+national_denial_rate,national denial rate among decided,0.24284410858323671,0.24284410858323671,0,"rtol=1e-09, atol=1e-09",PASS,True,"within rtol=1e-09, atol=1e-09"
+national_origination_share,national origination share among applications (1-5),0.57476252996663324,0.57476252996663324,0,"rtol=1e-09, atol=1e-09",PASS,True,"within rtol=1e-09, atol=1e-09"
+loan_amount_mean,loan_amount: mean,313529.72526313941,313529.72526313941,0,"rtol=1e-09, atol=1e-09",PASS,True,"within rtol=1e-09, atol=1e-09"
+loan_amount_median,loan_amount: median (exact percentile),225000,225000,0,"rtol=1e-09, atol=1e-09",PASS,True,"within rtol=1e-09, atol=1e-09"
+income_mean,income: mean,153.53180740578418,153.53180740578418,0,"rtol=1e-09, atol=1e-09",PASS,True,"within rtol=1e-09, atol=1e-09"
+income_median,income: median (exact percentile),105,105,0,"rtol=1e-09, atol=1e-09",PASS,True,"within rtol=1e-09, atol=1e-09"
+interest_rate_mean,interest_rate: mean,7.1867000415344924,7.1867000415173088,1.7183587885938323e-11,"rtol=1e-09, atol=1e-09",PASS,True,"within rtol=1e-09, atol=1e-09"
+interest_rate_median,interest_rate: median (exact percentile),6.875,6.875,0,"rtol=1e-09, atol=1e-09",PASS,True,"within rtol=1e-09, atol=1e-09"
+number_of_lenders,number of lenders,4926,4926,0,exact,PASS,True,exact integer match
+eligible_lenders,eligible lenders (>= min decided),3180,3180,0,exact,PASS,True,exact integer match
+lender_denial_count,sum of lender denial counts,2103462,2103462,0,exact,PASS,True,exact integer match
+states_consistent,states consistent with national product pattern,51,51,0,exact,PASS,True,exact integer match
+cramers_v_income,Cramér's V (income),0.2388110115041604,0.2388110115041604,0,"rtol=1e-09, atol=1e-09",PASS,True,"within rtol=1e-09, atol=1e-09"
+cramers_v_loan_amount,Cramér's V (loan_amount),0.2226317300034544,0.2226317300034544,0,"rtol=1e-09, atol=1e-09",PASS,True,"within rtol=1e-09, atol=1e-09"
+cramers_v_lti,Cramér's V (lti),0.1955886568614055,0.1955886568614055,0,"rtol=1e-09, atol=1e-09",PASS,True,"within rtol=1e-09, atol=1e-09"
+cramers_v_dti,Cramér's V (dti),0.4974076733873225,0.4974076733873225,0,"rtol=1e-09, atol=1e-09",PASS,True,"within rtol=1e-09, atol=1e-09"
+cramers_v_cltv,Cramér's V (cltv),0.10638956916753579,0.10638956916753579,0,"rtol=1e-09, atol=1e-09",PASS,True,"within rtol=1e-09, atol=1e-09"
+cramers_v_property_value,Cramér's V (property_value),0.1548977215292717,0.1548977215292717,0,"rtol=1e-09, atol=1e-09",PASS,True,"within rtol=1e-09, atol=1e-09"
+q4_coef_intercept,regression (interest_rate) coefficient: intercept,9.5235728938497459,9.523572888326898,5.5228479567404065e-09,"rtol=1e-09, atol=1e-09",PASS,True,"within rtol=1e-09, atol=1e-09"
+q4_coef_loan_type[2],regression (interest_rate) coefficient: loan_type[2],-0.54042415588737325,-0.54042415585308368,-3.4289571182455347e-11,"rtol=1e-09, atol=1e-09",PASS,True,"within rtol=1e-09, atol=1e-09"
+q4_coef_loan_type[3],regression (interest_rate) coefficient: loan_type[3],-0.65136567599761808,-0.6513656760372315,3.961342365244036e-11,"rtol=1e-09, atol=1e-09",PASS,True,"within rtol=1e-09, atol=1e-09"
+q4_interest_rate_r2,regression (interest_rate) R-squared,0.38040190324586221,0.38040190320536132,4.0500880427174479e-11,"rtol=1e-09, atol=1e-09",PASS,True,"within rtol=1e-09, atol=1e-09"

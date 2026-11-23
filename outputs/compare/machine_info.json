@@ -1,0 +1,41 @@
+{
+  "platform": "Windows-11-10.0.26300-SP0",
+  "processor": "Intel64 Family 6 Model 186 Stepping 2, GenuineIntel",
+  "python": "3.12.10",
+  "cpu_logical": 20,
+  "cpu_physical": 14,
+  "ram_gib": 15.62,
+  "pandas": "2.3.3",
+  "numpy": "2.2.6",
+  "pyarrow": "26.0.1",
+  "pyspark": "3.5.3",
+  "spark_config": {
+    "master": "local[*]",
+    "driver_memory": "6g",
+    "shuffle_partitions": 64,
+    "master_files": 64,
+    "local_dir": null
+  },
+  "benchmark_config": {
+    "input_master": "pandas",
+    "fractions": [
+      0.25,
+      0.5,
+      1.0
+    ],
+    "warmups": 1,
+    "repeats": 7,
+    "memory_probe_runs": 3,
+    "read_compute": true,
+    "unstable_ratio": 1.5
+  },
+  "workloads": [
+    "lender_groupby",
+    "median_by_state"
+  ],
+  "java": [
+    "openjdk version \"17.0.21\" 2026-10-20",
+    "OpenJDK Runtime Environment Temurin-17.0.21+9 (build 17.0.21+9)",
+    "OpenJDK 64-Bit Server VM Temurin-17.0.21+9 (build 17.0.21+9, mixed mode, sharing)"
+  ]
+}

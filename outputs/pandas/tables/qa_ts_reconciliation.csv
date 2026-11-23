@@ -1,0 +1,2 @@
+lenders_in_LAR,institutions_in_TS,in_LAR_not_TS,in_TS_not_LAR,lenders_with_count_mismatch,LAR_rows,TS_sum_lar_count,totals_match
+4926,4926,0,0,0,12259199,12259199,True

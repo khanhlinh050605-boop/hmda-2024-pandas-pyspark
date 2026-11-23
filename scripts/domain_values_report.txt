@@ -1,0 +1,49 @@
+== income: domain {'lo': 0, 'hi': '1.0e5'}
+              numeric: 10,478,765
+                 == 0: 157,494
+                  < 0: 7,760
+     out_below_domain: 165,254
+     out_above_domain: 221
+   giá trị ngoài miền phổ biến nhất: 0 (x157,494), -1 (x256), -2 (x226), -3 (x193), -5 (x179), -4 (x167), -6 (x145), -7 (x137)
+== interest_rate: domain {'lo': 0, 'hi': 25}
+              numeric: 7,739,304
+                 == 0: 83,442
+                  < 0: 0
+     out_below_domain: 83,442
+     out_above_domain: 1
+   giá trị ngoài miền phổ biến nhất: 0 (x42,973), 0.000 (x39,624), 0.0000 (x772), 0.0 (x55), 0.00000 (x14), 0.00 (x4), 60.000 (x1)
+== property_value: domain {'lo': 0, 'hi': '5.0e8'}
+              numeric: 9,515,124
+                 == 0: 0
+                  < 0: 0
+     out_below_domain: 0
+     out_above_domain: 100
+   giá trị ngoài miền phổ biến nhất: 2147483647 (x7), 500805000 (x7), 600005000 (x4), 800005000 (x4), 999995000 (x4), 700005000 (x3), 500005000 (x3), 1576125000 (x3)
+== loan_term: domain {'lo': 0, 'hi': 600}
+              numeric: 11,768,046
+                 == 0: 0
+                  < 0: 0
+     out_below_domain: 0
+     out_above_domain: 513
+   giá trị ngoài miền phổ biến nhất: 665 (x11), 659 (x11), 602 (x11), 636 (x10), 625 (x9), 651 (x9), 627 (x9), 656 (x9)
+== rate_spread: domain {'lo': -10, 'hi': 25, 'lo_inclusive': True}
+              numeric: 5,829,281
+                 == 0: 11,296
+                  < 0: 1,880,113
+     out_below_domain: 11
+     out_above_domain: 441
+   giá trị ngoài miền phổ biến nhất: 100.000 (x18), 375 (x12), 350 (x11), 130 (x9), 153 (x9), 149 (x8), 151 (x8), 134 (x7)
+== cltv: domain {'lo': 0, 'hi': 300}
+              numeric: 7,941,052
+                 == 0: 0
+                  < 0: 0
+     out_below_domain: 0
+     out_above_domain: 3,095
+   giá trị ngoài miền phổ biến nhất: 999.999 (x325), 999.99 (x43), 1750.00000 (x28), 350.00000 (x27), 1000.00000 (x26), 500.00000 (x24), 3500.00000 (x22), 700.00000 (x21)
+== loan_amount: domain {'lo': 0, 'hi': '1.0e9'}
+              numeric: 12,259,199
+                 == 0: 0
+                  < 0: 0
+     out_below_domain: 0
+     out_above_domain: 14
+   giá trị ngoài miền phổ biến nhất: 2650005000 (x1), 1000005000 (x1), 1050005000 (x1), 1656005000 (x1), 1256255000 (x1), 2000005000 (x1), 1248005000 (x1), 1090805000 (x1)

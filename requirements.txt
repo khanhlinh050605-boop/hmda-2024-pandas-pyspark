@@ -1,0 +1,12 @@
+# Python 3.12 ONLY (cnsplots does not install on 3.13). Java 17 is required for PySpark.
+pandas>=2.2,<3
+numpy>=1.26,<2.3
+pyarrow>=15
+pyspark==3.5.3
+scipy>=1.11
+scikit-learn>=1.4
+pyyaml>=6
+psutil>=5.9
+pytest>=8
+cnsplots==0.8.0
+setuptools<81

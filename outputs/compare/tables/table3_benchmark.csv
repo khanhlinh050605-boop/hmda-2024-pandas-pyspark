@@ -1,0 +1,13 @@
+workload,scenario,fraction,data_size,records,pandas_s,pyspark_s,faster_method,faster_by_median,speedup_pandas_over_spark,ranges_overlap,pandas_unstable,spark_unstable
+lender_groupby,compute_only,0.25,25%,3066841,0.18560910000815056,0.36619380000047386,Pandas,Pandas,0.50686030186177478,False,False,False
+lender_groupby,compute_only,0.5,50%,6131779,0.34896570000273641,0.40792630000214558,Tie / inconclusive,Pandas,0.85546261665624634,True,False,False
+lender_groupby,compute_only,1,100%,12259199,0.70394859999942128,0.4543095999979414,PySpark,PySpark,1.5494909198542384,False,False,False
+lender_groupby,read_compute,0.25,25%,3066841,1.6034513999911724,0.7292200999945635,PySpark,PySpark,2.1988579305522795,False,False,False
+lender_groupby,read_compute,0.5,50%,6131779,1.858968200001982,0.73446609999518842,PySpark,PySpark,2.5310469741410264,False,False,False
+lender_groupby,read_compute,1,100%,12259199,2.2118988000001991,0.75327420000394341,PySpark,PySpark,2.9363793423279594,False,False,False
+median_by_state,compute_only,0.25,25%,3066841,0.21943260000261944,0.43518829999084119,Pandas,Pandas,0.50422449318430096,False,False,False
+median_by_state,compute_only,0.5,50%,6131779,0.44711939999251626,0.49217979999957606,Tie / inconclusive,Pandas,0.90844727880522802,True,False,False
+median_by_state,compute_only,1,100%,12259199,0.92826359999889974,0.56459920000634156,PySpark,PySpark,1.644110724897367,False,False,False
+median_by_state,read_compute,0.25,25%,3066841,1.5463199999940116,0.74730160000035539,PySpark,PySpark,2.069204722689308,False,False,False
+median_by_state,read_compute,0.5,50%,6131779,1.8378742000058992,0.82112180000694934,PySpark,PySpark,2.2382479675857403,False,False,False
+median_by_state,read_compute,1,100%,12259199,2.252873899997212,0.93046400000457652,PySpark,PySpark,2.4212370387098598,False,False,False

@@ -1,0 +1,251 @@
+project:
+  year: 2024
+  seed: 20241119
+paths:
+  lar_dir: data/synthetic/lar
+  ts_file: data/synthetic/ts.zip
+  interim_dir: data/interim_test
+  output_dir: outputs_test
+  part_regex: part-(\d+)
+spark:
+  master: local[2]
+  driver_memory: 3g
+  shuffle_partitions: 8
+  master_files: 4
+  local_dir: null
+thresholds:
+  small_cell: 30
+  lender_min_decided: 100
+  top_segments: 5
+  state_rho: 0.7
+  ci_z: 1.959963984540054
+plausibility:
+  loan_amount:
+    lo: 0
+    hi: 1.0e9
+  income:
+    lo: 0
+    hi: 1.0e5
+  property_value:
+    lo: 0
+    hi: 5.0e8
+  loan_term:
+    lo: 0
+    hi: 600
+  interest_rate:
+    lo: 0
+    hi: 25
+  rate_spread:
+    lo: -10
+    hi: 25
+    lo_inclusive: true
+  total_loan_costs:
+    lo: 0
+    hi: 5.0e6
+    lo_inclusive: true
+  cltv:
+    lo: 0
+    hi: 300
+  lti:
+    lo: 0
+    hi: 100
+  dti:
+    lo: 0
+    hi: 60
+    lo_inclusive: true
+bands:
+  income_k:
+  - 30
+  - 50
+  - 75
+  - 100
+  - 150
+  - 250
+  loan_amount:
+  - 100000
+  - 200000
+  - 300000
+  - 500000
+  - 1000000
+  lti:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 8
+  cltv:
+  - 60
+  - 70
+  - 80
+  - 90
+  - 95
+  - 100
+  property_value:
+  - 100000
+  - 200000
+  - 300000
+  - 500000
+  - 750000
+  - 1000000
+  dti_numeric:
+  - 20
+  - 30
+  - 36
+  - 43
+  - 50
+  - 60
+regression:
+  categorical:
+  - loan_type
+  - loan_purpose
+  - lien_status
+  - occupancy_type
+  - dti_band
+  continuous:
+  - log_loan_amount
+  - log_income
+  - cltv
+  - term_years
+  - log_property_value
+  targets:
+  - interest_rate
+  - rate_spread
+  min_cell_n: 1
+robustness:
+  variants:
+    baseline: []
+    exclude_records_with_exempt_values:
+    - - has_reported_exempt_value
+      - ==
+      - 0
+    exclude_lenders_with_exempt_values:
+    - - lei
+      - not_in
+      - '@lenders_with_exempt_values'
+    exclude_all_repeated_fingerprint_rows:
+    - - is_dup
+      - ==
+      - 0
+    exclude_business:
+    - - is_business
+      - ==
+      - 0
+    all_combined:
+    - - has_reported_exempt_value
+      - ==
+      - 0
+    - - lei
+      - not_in
+      - '@lenders_with_exempt_values'
+    - - is_dup
+      - ==
+      - 0
+    - - is_business
+      - ==
+      - 0
+  q3_vars:
+  - dti
+  - lti
+  - income
+correctness:
+  rtol: 1.0e-09
+  atol: 1.0e-09
+  expected_catalog:
+    raw: {count: 164, sha256: 4409026982bdd205bab4727f1cc1adc3a2e9aba2b079afa1841cf3953f2176de}
+    tables: {count: 67, sha256: c1cabe83c1324fa35cf1561bc29e5d27641f3417b6f5a0560ace866bdf82370b}
+  expected_headline_count: 30
+  overrides:
+    q3_loan_income_relation:
+      columns:
+        pearson_r_log_loan_vs_log_income: {rtol: 5.0e-09, atol: 3.0e-09}
+        elasticity_slope_loan_on_income: {rtol: 5.0e-09, atol: 3.0e-09}
+    q4_reg_coef_all:
+      columns: &q4_coef_tolerances
+        coef: {rtol: 1.0e-08, atol: 1.0e-08}
+        t: {rtol: 1.0e-08, atol: 5.0e-07}
+        ci_lo: {rtol: 1.0e-08, atol: 1.0e-08}
+        ci_hi: {rtol: 1.0e-08, atol: 1.0e-08}
+        t_cluster: {rtol: 1.0e-08, atol: 5.0e-07}
+        ci_lo_cluster: {rtol: 1.0e-08, atol: 1.0e-08}
+        ci_hi_cluster: {rtol: 1.0e-08, atol: 1.0e-08}
+    q4_reg_coef_interest_rate:
+      columns: *q4_coef_tolerances
+    q4_reg_coef_rate_spread:
+      columns: *q4_coef_tolerances
+    q4_reg_summary:
+      columns:
+        cond_scaled: {rtol: 2.0e-09, atol: 1.0e-09}
+  required_tables:
+    raw:
+    - ds_action
+    - q1_cube_state_seg
+    - q2_cube_lender_seg
+    - q3_cube_dti
+    - q4_reg_cells_interest_rate
+    - q4_reg_cells_by_lender_interest_rate
+    tables:
+    - ds_outcomes
+    - ds_numeric_summary
+    - q1_national_total
+    - q1_state_consistency_summary
+    - q2_lender_table
+    - q2_summary
+    - q3_association
+    - q4_reg_summary
+    - q4_reg_coef_interest_rate
+    - robustness_summary
+  required_headlines:
+  - master_n_rows
+  - decided_applications
+  - national_denial_rate
+  - interest_rate_median
+  - q4_interest_rate_r2
+benchmark:
+  input_master: pandas
+  fractions:
+  - 0.25
+  - 0.5
+  - 1.0
+  warmups: 1
+  repeats: 3
+  memory_probe_runs: 1
+  read_compute: true
+  unstable_ratio: 1.5
+figures:
+  dpi: 120
+  formats:
+  - png
+  - pdf
+  engine_for_figures: pandas
+predictive:
+  sample_rows: 200000
+  test_size: 0.2
+  val_size: 0.2
+  leakage_gap: 0.2
+  min_lender_decided: 20
+  categorical:
+  - loan_type
+  - loan_purpose
+  - lien_status
+  - occupancy_type
+  - state_code
+  - dti_band
+  - construction_method
+  - total_units
+  continuous:
+  - log_loan_amount
+  - log_income
+  - cltv
+  - term_years
+  - log_property_value
+  lender_profile:
+  - lender_log_apps
+  - lender_share_loan_type_1
+  - lender_share_loan_type_2
+  - lender_share_purpose_1
+  - lender_share_purpose_31
+  - lender_share_purpose_32
+  - lender_share_purpose_4
+  bootstrap: 20

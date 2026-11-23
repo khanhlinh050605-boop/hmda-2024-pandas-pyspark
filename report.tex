@@ -1,0 +1,249 @@
+\documentclass[acmtog,nonacm]{acmart}
+\input{results_macros.tex}
+\settopmatter{printacmref=false}
+\setcopyright{none}
+\renewcommand\footnotetextcopyrightpermission[1]{}
+\pagestyle{plain}
+\acmJournal{TOG}
+\newcommand{\figpath}{figures}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{placeins}
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\floatsep}{6pt plus 2pt minus 2pt}
+
+\begin{document}
+
+\title{Mortgage Denial, Origination and Pricing in 2024 HMDA Data:\\
+A Pandas--PySpark Analysis of \NRecords{} Records}
+
+\author{Ninh Ngoc Anh}
+\affiliation{\institution{Group 5, Big Data Analysis -- ID 11230734}\country{Vietnam}}
+\author{Bui Thi Khanh Linh}
+\affiliation{\institution{Group 5, Big Data Analysis -- ID 11230756}\country{Vietnam}}
+\author{Nguyen Thi Thu Phuong}
+\affiliation{\institution{Group 5, Big Data Analysis -- ID 11230770}\country{Vietnam}}
+
+\begin{abstract}
+We analyse the 2024 national Home Mortgage Disclosure Act (HMDA) Loan/Application Register (\NRecords{} records). We describe how denial among decided applications and origination among applications vary by product, state and lender; how income, debt-to-income (DTI) and other financial bands are associated with denial; and how interest rates and rate spreads vary among originations. Pandas and PySpark independently prepare and aggregate the data, then use shared statistical functions for downstream calculations; the two engines agree on all \NTables{} compared tables and \NHeadline{} headline quantities. The national denial rate is \DenialPct\% of \NDecided{} decided applications. Adjusting for product mix reduces the interquartile range of lender denial rates from \RawIQR{} to \StdIQR{} percentage points but leaves it wide. In a single-machine benchmark, the faster engine depends on data volume and on whether file reading is timed. A lender-grouped predictive extension ranks held-out applications with a test ROC-AUC of \GBAUC{}. All results are descriptive associations and make no claim about discrimination.
+\end{abstract}
+\keywords{HMDA, mortgage lending, Pandas, PySpark, data engineering, Parquet}
+
+\maketitle
+
+%==========================================================
+\section{Introduction}
+The Home Mortgage Disclosure Act (HMDA) requires lenders to report loan and application records that regulators and the public use to monitor mortgage markets \cite{regc}. The 2024 public file contains \NRecords{} records from \LendersTotal{} institutions. The main question of this project is how mortgage application outcomes vary across loan types, states and lenders in 2024. We study two outcomes: \emph{denial} among decided applications and \emph{origination} among applications. Four supporting questions follow. \textbf{Q1:} are product-level denial patterns consistent across states? \textbf{Q2:} how dispersed are lender denial rates before and after product-mix adjustment and within a common product segment, and how do origination shares vary across lenders? \textbf{Q3:} how are income, loan amount, loan-to-income (LTI), DTI, combined loan-to-value (CLTV) and property value associated with denial? \textbf{Q4:} how do interest rate and rate spread vary among originations?
+
+The engineering question carries equal weight: do independent Pandas and PySpark implementations give equivalent results, and how do their time and memory use compare on one workload? Earlier work on public HMDA data studies denial for home purchases \cite{garcia2026}; we cover all products, state each denominator, and require engine equivalence before timing is interpreted. We never read applicant demographic fields (Section~\ref{sec:data}), so the results do not address fair lending.
+
+%==========================================================
+\section{Dataset and data quality}\label{sec:data}
+\textbf{Source and unit.} We use the FFIEC/CFPB 2024 one-year national loan-level file, frozen on 2 June 2026 \cite{ffiecdata}. It is distributed as a pipe-delimited text file inside a zip archive (\SourceBytes{} bytes, \SourceMiB{} MiB compressed) with \NRecords{} rows and 99 fields. We converted it to Parquet by streaming. The Transmittal Sheet (TS) lists \LendersTotal{} institutions, and its record counts sum exactly to the LAR row count; we use the TS only to reconcile counts and to name lenders. A row is a reported loan or application record, not necessarily a funded loan. Following the filing guide \cite{fig2024}, action codes 1--5 define \emph{applications} (\NApps{}), codes 1--3 \emph{decided applications} (\NDecided{}), code 3 a denial (\NDenied{}) and code 1 an origination (\NOrig{}). Codes 4 and 5 (withdrawn, closed as incomplete) belong to the application denominator of the origination share but not to the decided-application denominator of the denial rate. Codes 6--8 (purchased loans, pre-approvals) stay in the file but outside both denominators. Every percentage below states its denominator. The file contains the fields that Q1--Q4 require; it has no credit score, which limits interpretation (Section~\ref{sec:limits}).
+
+\textbf{Quality.} Several fields are frequently NA or Exempt (Figure~\ref{fig:data}a): total loan costs 55.0\%, rate spread 52.4\%, interest rate 36.9\%, DTI 35.5\%, CLTV 35.2\%, property value 22.4\% and income 14.5\%. Exempt values (about 2.3\% per field) arise from partial exemptions for low-volume lenders \cite{gao21}; \ExemptRec{} records from 2,048 lenders contain one. Missingness differs by observed outcome: CLTV is NA for \CLTVnaDen\% of denied but \CLTVnaApp\% of approved decided applications, and property value is more often NA among denials. Loan amount and property value are published as midpoints of \$10{,}000 intervals \cite{cfpbpolicy,ffieclar}, so LTI computed from them is approximate (median loan \$\LoanMed{}, 25th percentile \$\LoanPtwentyfive{}). Values that parse but fall outside the analysis domain are flagged, not treated as errors: 165,475 incomes ($\le 0$ or $>10^5$, in thousand USD) and 83,443 interest rates (zero or above 25\%). \DupRows{} rows belong to groups of identical records over all 50 permitted fields; we do not assume they are accidental duplicates.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.85\textwidth]{\figpath/fig0_data_quality.pdf}
+\caption{Data quality. (a) Share of the \NRecords{} records whose value is NA or Exempt, by field. (b) Loan amount (log$_{10}$ USD) and (c) income (log$_{10}$ thousand USD) distributions, in thousands of records. Out-of-domain values are flagged, not removed.}
+\label{fig:data}
+\end{figure*}
+
+%==========================================================
+\section{Data engineering}
+\textbf{Cleaning rules and their rationale.} Fields are read as strings and converted field by field, because HMDA special codes are field-specific \cite{ffieclar}. Five rules apply identically in both engines. (i) NA, Exempt, outside-domain and valid values stay distinguishable, and nothing is zero-filled. (ii) The value 1111 in \texttt{income} is a valid income of \$1.1 million, because income has no Exempt code; in categorical flags 1111 means Exempt. (iii) DTI bands follow the public bins; the values 50 and 60 belong to 50--60, values above 60 to $>$60, and numeric DTI from 36 to 49 is mapped to the bands 36--$<$43 and 43--$<$50. (iv) Outside-domain values (zero interest rate, income $\le0$ or $>10^5$) are excluded from price statistics and placed in a separate band that never enters the headline Cram\'er's $V$; we report their counts and do not guess whether they are errors. (v) No row is deleted; duplicate, exempt-value and business-purpose records are flags used only in sensitivity analyses.
+
+\textbf{Effect of the rules.} Excluding any one flagged group (exempt-value records, lenders with such records, repeated fingerprints, business-purpose records) moves the national denial rate between \RobMin\% and \RobMax\%, against a baseline of \DenialPct\%. Excluding all of them gives \RobComb\%, with \RobCombEl{} eligible lenders (\RobCombLost{} fewer) and a lender IQR of \RobCombIQR{} pp (baseline \RawIQR{}). National rates are insensitive to these rules; lender dispersion is more sensitive.
+
+\textbf{Derived variables.} Indicators for application, decided, denied and originated records; product (loan type $\times$ purpose) and segment (product $\times$ lien); LTI $=$ loan amount$/(1000\times$income$)$ and log amount, income and property value; bands for income, amount, LTI, DTI, CLTV and property value; a duplicate flag; and a key for the nested benchmark samples.
+
+\textbf{Parquet and projection.} The raw Parquet conversion contains 246 parts (snappy, 0.445 GiB in total). Each engine writes its own analytical Parquet master. Of the 99 source columns, 21 are analysis inputs. Duplicate fingerprints use all 50 permitted source columns, including those 21 analysis inputs; the remaining 49 columns are excluded from reads by the analytical engines. The excluded columns include applicant and co-applicant age, sex, race and ethnicity, their derived columns, tract minority share, denial reasons, HOEPA status, purchaser type and automated-underwriting fields. A schema guard in both engines enforces this choice; it keeps the study descriptive, since fair-lending inference would need credit-risk controls that the public file lacks \cite{ffiec2019}. Columnar storage allows column pruning \cite{parquet}; we did not partition by state, since the main queries are keyed on lender and product.
+
+%==========================================================
+\section{Descriptive and diagnostic analysis}
+\textbf{Main outcomes.} Among \NDecided{} decided applications, \NDenied{} are denials (\DenialPct\%, Wilson 95\% interval \DenialLo--\DenialHi\% \cite{wilson1927}), and \NOrig{} of \NApps{} applications are originated (\OrigPct\%). Product matters (Figure~\ref{fig:q1}a). Denial is \ConvPurchDen\% for conventional purchase and \VAPurchDen\% for VA purchase, but \ConvImprDen\% for conventional home improvement and \ConvOtherDen\% for conventional ``other'' purpose, and origination shares move in the opposite direction. Origination of conventional purchase applications is \CAOrig\% in California and \TXOrig\% in Texas.
+
+\textbf{Q1: states.} For each state, we compute Spearman's $\rho$ \cite{spearman1904} between its product-level denial rates and the national ones, using cells with at least 30 decisions. This measures agreement in ordering, not equality of levels. Of \StatesReported{} reported state and territory codes (including DC, PR, GU and VI), \StatesEval{} have enough comparable cells, and \StatesCons{} of these reach $\rho\ge0.70$ (median \MedianRho, minimum \MinRho; Figure~\ref{fig:q1}c). Levels still differ: product-mix standardised observed/expected (O/E) denials run from \NDOE{} in North Dakota to \LAOE{} in Louisiana (Figure~\ref{fig:q1}d). \MissStateRec{} records have no state; their \MissStateDec{} decided applications have a denial rate of \MissStateDen\%.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=.97\textwidth]{\figpath/fig1_q1_products_states.pdf}
+\caption{Main outcomes and Q1. (a) Denial rate among decided applications (circles) and origination share among applications (squares) for the 12 largest loan-type$\times$purpose cells. (b) Denial rate (\%) by state and loan type, ten largest states. (c) Spearman $\rho$ between state and national product rates; dashed line $=0.70$. (d) State O/E denials after product-mix standardisation, with Garwood 95\% intervals \cite{garwood1936}. Associations only.}
+\label{fig:q1}
+\end{figure*}
+
+\textbf{Q2: lenders.} We keep \LendersElig{} lenders with at least 100 decided applications (\EligShare\% of decisions). For lender $l$, expected denials are $E_l=\sum_s n_{ls}r_s$, where $n_{ls}$ is the number of decisions in segment $s$ and $r_s$ the national segment rate; O/E $=O_l/E_l$. Raw lender denial rates span \LenPfive--\LenPninetyfive\% (5th to 95th percentile, median \LenMed\%). Standardising for product mix lowers the IQR from \RawIQR{} to \StdIQR{} pp but slightly raises the standard deviation (\RawSD{} to \StdSD{} pp), so adjustment changes the shape of the dispersion without removing it. Within conventional first-lien purchase alone, \SegLenders{} lenders still have an IQR of \SegIQR{} pp. The median O/E is \OEMed{}, not 1, while the mean weighted by decisions is \OEWmean{}: the ten largest lenders hold \TopTenShare\% of decisions and shape the national rates, so most lenders have fewer denials than those rates predict. \OEAbove{} lenders have intervals above 1 and \OEBelow{} below 1. Origination varies as well: among the same \LOn{} lenders, the origination share (actions 1--5 as denominator) has a median of \LOMed\%, an IQR of \LOIQR{} pp and a 5th--95th percentile range of \LOPfive--\LOPninetyfive\%. The \LOMed\% figure is the unweighted median of lender-level origination shares among these eligible lenders; \OrigPct\% is the pooled national share across application records (actions 1--5).
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.82\textwidth]{\figpath/fig2_q2_lenders.pdf}
+\caption{Q2. (a) Distribution of lender denial rates (dashed: national). (b) O/E versus lender size; coloured points have intervals excluding 1. (c) O/E versus raw rate. (d) Dispersion overall and within common segments (box: IQR; whiskers: p5--p95).}
+\label{fig:q2}
+\end{figure*}
+
+\textbf{Q3: financial bands.} We report bias-corrected Cram\'er's $V$ \cite{bergsma2013} for denied versus approved applications on valid bands. At this sample size even small departures from independence are statistically significant, so we report an effect size instead. DTI has the largest $V$ among the six variables (\Vdti{}), followed by income (\Vinc), loan amount (\Vloan), LTI (\Vlti), property value (\Vpv) and CLTV (\Vcltv). Denial is \DTIlow\% in DTI band 36--$<$43 and \DTImid\% in 43--$<$50, but \DTIhi\% in 50--60 and \DTIvhi\% above 60 (Figure~\ref{fig:q3}d). The value 43\% was the DTI limit of the earlier general qualified-mortgage definition, which the CFPB replaced with price-based thresholds in 2020 \cite{qmrule}, so the jump above 50\% does not correspond to a regulatory cut-off that we can verify here. Denial falls from \IncLow\% for income below \$30k to \IncHigh\% above \$250k. Loan amount rises less than proportionally with income: the log--log slope is \LIslopeAll{} across \LInAll{} applications (Pearson $r=\LIrAll{}$) and \LIslopeOrig{} across \LInOrig{} originations. Status bands are excluded from $V$: CLTV-NA applications are denied \CLTVna\% of the time, and \IncOOD{} decided applications with out-of-domain income \IncOODrate\%.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.9\textwidth]{\figpath/fig3_q3_finance_bands.pdf}
+\caption{Q3. Denial rate among decided applications by (a) income, (b) loan amount, (c) loan-to-income and (d) DTI band. Filled points are valid bands; hollow points are NA, Exempt or out-of-domain bands, shown without intervals when $n<30$. Panel titles give valid $n$ and bias-corrected $V$.}
+\label{fig:q3}
+\end{figure*}
+
+\textbf{Q4: pricing.} Pricing is observed only for originations with a valid value: interest rate ($n=\RateN{}$, median \RateMed\%) and rate spread, the difference between the APR and the average prime offer rate ($n=\SpreadN{}$, median \SpreadMed{} pp) \cite{ffieclar}. For conventional purchases the median rate is \CPRateI{}\% for first liens and \CPRateII{}\% for subordinate liens, and the median spread is \CPSpreadI{} against \CPSpreadII{} pp. Two OLS models, built from grouped cross-products, use originated consumer-purpose, closed-end, forward mortgages with valid loan amount, income, CLTV, term, property value and outcome (DTI bands, including NA and Exempt, enter as categories), hence \QRn{} and \QSn{} loans rather than the \RateN{} and \SpreadN{} valid prices above. Adjusted $R^2$ is \QRrII{} (RMSE \QRrmse{} pp) for interest rate and \QSrII{} (RMSE \QSrmse{} pp) for rate spread. Relative to conventional loans, FHA, VA and RHS/FSA loans have rate coefficients of \cFHA, \cVA{} and \cRHS{} pp, and a subordinate lien is associated with a rate \rLien{} pp higher, conditional on the included covariates. Spread is measured against the average prime offer rate, so programme coefficients differ: FHA \sFHA{} pp, VA \sVA{} pp, and a subordinate lien \sLien{} pp.
+
+To allow for possible dependence of regression residuals within a lender, we also report lender-clustered standard errors (CR1; $G=\GR{}$ lenders for the rate model and $\GS{}$ for the spread model). CR1 standard errors are generally larger than classical ones: across the 23 coefficients other than the intercept and the DTI-Exempt indicator (whose clustered error is smaller), the median enlargement factor is \RatioRMed{} (range \RatioRMin--\RatioRMax) for the rate model and \RatioSMed{} (\RatioSMin--\RatioSMax) for the spread model, and some coefficients are no longer distinguishable from zero. In the rate model the subordinate-lien, programme and property-value coefficients keep their sign and remain distinguishable from zero ($|t|\ge7.7$), while the loan-amount coefficient becomes weak ($t=\tRLogLoan{}$) and the DTI 50--60 coefficient is indistinguishable from zero ($t=\tRDTIhi{}$); \LoseR{} of \NTermsR{} non-intercept coefficients lose significance. In the spread model \LoseS{} of \NTermsS{} do, including FHA ($t=\tSFHA{}$), while lien, VA and both log-size terms remain. Clustering changes the estimated precision of the coefficients; it does not address omitted variables or directly measure the strength of within-lender price correlation. The scaled condition numbers ($\Cond$ for rate, $\CondS$ for spread) indicate sensitivity in the fitted design, not which variables are responsible. Figure~\ref{fig:q4}c,d plots the coefficients with clustered intervals.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=.98\textwidth]{\figpath/fig4_q4_pricing.pdf}
+\caption{Q4. (a,b) Interest rate and rate spread in selected product$\times$lien segments (box: IQR; whiskers: p5--p95). (c,d) OLS coefficients in percentage points per unit with lender-clustered 95\% intervals (CR1); reference levels: conventional, purchase, first lien, principal residence, DTI 43--$<$50.}
+\label{fig:q4}
+\end{figure*}
+
+%==========================================================
+\section{Pandas and PySpark implementations}
+\textbf{Pandas.} The Pandas engine reads Parquet parts with column projection using PyArrow \cite{mckinney2010}, cleans each source part, and computes raw aggregations (counts, sums, grouped cross-products, exact percentiles and histograms). It materialises or caches selected columns across parts as needed.
+
+\textbf{PySpark.} The Spark engine uses the DataFrame API in local mode \cite{zaharia2016}: \texttt{select}, \texttt{filter}, \texttt{groupBy}/\texttt{agg} for the same raw aggregations, a broadcast join for the duplicate-fingerprint table and a no-shuffle \texttt{coalesce}.
+
+A single piece of shared code turns the raw aggregations into final tables and fits the OLS models by solving the normal equations from grouped cross-products. Because this code is deterministic, any difference between the engines must originate in the raw aggregations, which the validator compares. Unit tests on a synthetic fixture cover the \texttt{income=1111} case, DTI boundaries, duplicate semantics, exact integer comparison and clustered standard errors; the fixture feeds no reported result.
+
+\section{Correctness}
+The validator compares \NRawTables{} raw aggregations and \NFinalTables{} final tables (\NTables{} in total, \NCells{} cells, of which \NFloatCells{} are floating-point) and \NHeadline{} headline quantities, plus the \NBenchTables{} outputs of the benchmark workload W2 (checked for every sample size and scenario). All agree, with zero mismatching cells. String keys are compared exactly, counts as exact integers, and floating-point values by $|a-b|\le10^{-9}+10^{-9}|b|$. A documented second tier applies to five derived regression and correlation tables (OLS coefficients, intervals, $t$ statistics including clustered ones, the scaled condition number, and the loan-on-income slope and correlation): $10^{-8}$ for coefficients and intervals, $5\times10^{-7}$ for $t$ statistics, $5\times10^{-9}$ relative for slope and correlation, and $2\times10^{-9}$ relative for the condition number ($\approx3.84\times10^{4}$), which amplifies summation-order differences. Table~\ref{tab:corr} lists six outputs.
+
+\begin{table}[t]
+\caption{Selected Pandas--PySpark equivalence checks on the full data. $|\Delta|$ is the absolute difference. Counts are compared exactly; other cells agree if $|\Delta|\le10^{-9}(1+|b|)$, so the intercept ($5.5\times10^{-9}$) passes.}
+\label{tab:corr}
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Quantity & Pandas & PySpark & $|\Delta|$\\
+\midrule
+Decided applications (action 1--3) & 8,661,779 & 8,661,779 & 0 \\
+National denial rate & 0.2428441086 & 0.2428441086 & 0 \\
+Mean interest rate (\%) & 7.186700042 & 7.186700042 & 1.7e$-$11 \\
+Cram\'er's $V$ (DTI) & 0.4974076734 & 0.4974076734 & 0 \\
+OLS intercept (rate, pp) & 9.523572894 & 9.523572888 & 5.5e$-$09 \\
+OLS $R^2$ (rate) & 0.3804019032 & 0.3804019032 & 4.1e$-$11 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Counts are identical. Non-zero differences come from the order of floating-point summation, for example $1.7\times10^{-11}$ for the mean interest rate; the OLS intercept differs by $5.5\times10^{-9}$ ($5.8\times10^{-10}$ relative, first tier). Sums of large values differ by at most $\NonOverrideRel$ in relative terms, and the largest second-tier difference is $\TierTwoMax$ (a $t$ statistic).
+
+%==========================================================
+\section{Performance}
+\textbf{Design.} Two workloads run on nested 25\%, 50\% and 100\% samples (\RecMtwentyfive{}, \RecMfifty{} and \RecMhundred{} million records). \emph{W1} groups all records by lender and computes the record count, mean loan amount, decided and denied counts and denial rate. \emph{W2} computes the exact median loan amount by state (\WBNGroups{} groups, including the NA code); an exact median needs the order of the values and cannot be assembled from partial sums, so it stresses the engines differently from W1. Both engines read the same Parquet master with the same projection, and outputs are verified equivalent for every cell before timing is used. \emph{Compute-only} times the computation after loading; the Spark session is already running and the data are cached and counted before timing. \emph{Read+compute} also times the Parquet read, with the Spark session running and its cache cleared before each run. The operating-system file cache was not cleared. Each workload and scenario has one untimed warm-up pass and seven timed repeats in seeded, rotated cell order. We report medians and the speedup $T_\mathrm{Pandas}/T_\mathrm{Spark}$ (above 1 favours Spark). A cell is labelled ``Tie'' (tie or inconclusive) if the min--max ranges overlap or either engine is unstable (max/min $>1.5$); the faster method is never decided by the median alone. Environment: Windows 11, \CPUphys{} physical (\CPUlog{} logical) cores, \RAM{} GiB RAM, Python \PyVer, pandas \PandasVer, PyArrow \PyArrowVer, PySpark \SparkVer{} on OpenJDK \JavaVer{} (\texttt{local[*]}, 6~GB driver, 64 shuffle partitions).
+
+\begin{table*}[t]
+\caption{Median time (s) over seven repeats and speedup $T_\mathrm{Pandas}/T_\mathrm{Spark}$ for W1 (group by lender) and W2 (median by state). ``Tie'' means a tie or inconclusive (overlapping min--max ranges). Speedups are calculated from unrounded median times.}
+\label{tab:bench}
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}llrrrlrrrl@{}}
+\toprule
+ & & \multicolumn{4}{c}{W1: group by lender} & \multicolumn{4}{c}{W2: median by state}\\
+\cmidrule(lr){3-6}\cmidrule(lr){7-10}
+Scenario & Size & Pandas & Spark & Speedup & Faster & Pandas & Spark & Speedup & Faster\\
+\midrule
+Compute only & 25\% & \COtwentyfiveP & \COtwentyfiveS & \COtwentyfivex & \COtwentyfiveSh & \WBCOtwentyfiveP & \WBCOtwentyfiveS & \WBCOtwentyfivex & \WBCOtwentyfiveSh\\
+ & 50\% & \COfiftyP & \COfiftyS & \COfiftyx & \COfiftySh & \WBCOfiftyP & \WBCOfiftyS & \WBCOfiftyx & \WBCOfiftySh\\
+ & 100\% & \COhundredP & \COhundredS & \COhundredx & \COhundredSh & \WBCOhundredP & \WBCOhundredS & \WBCOhundredx & \WBCOhundredSh\\
+Read + compute & 25\% & \RCtwentyfiveP & \RCtwentyfiveS & \RCtwentyfivex & \RCtwentyfiveSh & \WBRCtwentyfiveP & \WBRCtwentyfiveS & \WBRCtwentyfivex & \WBRCtwentyfiveSh\\
+ & 50\% & \RCfiftyP & \RCfiftyS & \RCfiftyx & \RCfiftySh & \WBRCfiftyP & \WBRCfiftyS & \WBRCfiftyx & \WBRCfiftySh\\
+ & 100\% & \RChundredP & \RChundredS & \RChundredx & \RChundredSh & \WBRChundredP & \WBRChundredS & \WBRChundredx & \WBRChundredSh\\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\textbf{Answers to the five questions} (this machine and these two workloads only).
+(1) \emph{Which was faster?} Both workloads give the same pattern. Compute-only: Pandas at 25\%, no conclusive difference at 50\%, PySpark at 100\% (\COhundredx$\times$ for W1, \WBCOhundredx$\times$ for W2). Read+compute: PySpark at all three sizes ($\RCtwentyfivex$--$\RChundredx\times$ for W1, $\WBRCtwentyfivex$--$\WBRChundredx\times$ for W2).
+(2) \emph{Does it change with size?} Yes. From 25\% to 100\% of the data, Pandas compute-only time grows $\GrowCOP\times$ (W1) and $\WBGrowCOP\times$ (W2), against $\GrowCOS\times$ and $\WBGrowCOS\times$ for Spark, so the ranking reverses between the two ends. In read+compute, Pandas time grows $\GrowRCP\times$ and $\WBGrowRCP\times$; Spark's grows $\GrowRCS\times$ and $\WBGrowRCS\times$, and its W1 medians (\SparkRCvals{} s) are nearly flat, which suggests that fixed cost dominates there; we did not test this (Figure~\ref{fig:bench}a,b,f).
+(3) \emph{Overheads?} Starting a Spark session takes \SetupSession{} s and the first action \SetupFirst{} s in a fresh process, against \SetupImport{} s to import pandas. These costs are excluded from the table.
+(4) \emph{Memory?} Peak resident memory of the process tree at 100\% is \MemPhundred{} GiB (W1) and \WBMemPhundred{} GiB (W2) for Pandas and \MemShundred{} and \WBMemShundred{} GiB for Spark, which includes the JVM. The Spark W2 value varied widely across the three probes (\WBMemSminhundred{}--\WBMemSmaxhundred{} GiB).
+(5) \emph{When is Spark preferable?} As general guidance, not a measurement: when data exceed one machine's memory or work can be spread across machines. We tested no such regime and draw no conclusion beyond 3--12 million records and these two workloads.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.86\textwidth]{\figpath/fig5_engine_benchmark.pdf}
+\caption{Benchmark. (a,b) Compute-only median time for W1 and W2 (bars: min--max). (c) Speedup $T_\mathrm{Pandas}/T_\mathrm{Spark}$ for both workloads; hatched bars mark cells labelled ``Tie'' in Table~\ref{tab:bench}. (d) Peak memory. (e) Start-up cost in a fresh process. (f) Read+compute median time for both workloads (bars: min--max); no such cell is inconclusive.}
+\label{fig:bench}
+\end{figure*}
+
+%==========================================================
+\section{Predictive extension}
+\textbf{Target and population.} We predict whether a decided application is denied (action 3 versus 1--2). The population (\PredPop{} of \NDecided{} decisions) keeps consumer-purpose, closed-end forward mortgages and removes records with a reported Exempt value, their lenders (2,048 of \LendersTotal{}), and open-end, business-purpose and reverse-mortgage records, so results do not extend to the excluded groups.
+\textbf{Inputs.} Twenty features: eight categorical (loan type, purpose, lien, occupancy, state, DTI band, construction method, units), five continuous (log amount, log income, CLTV, term, log property value) and seven lender profiles (log volume and product shares, never outcomes). No demographic, credit-score or post-decision field is used.
+\textbf{Split and sampling.} Lenders are assigned to train, validation and test (\Lendtrain{}, \Lendval{} and \Lendtest{} lenders with at least 50 decisions) \emph{before} any outcome-based audit, and then a deterministic sample of \PredRows{} rows is drawn (\Rowstrain{} / \Rowsval{} / \Rowstest{}). Denial rates differ across the sets (\Dentrain\%, \Denval\%, \Dentest\%) because lenders differ, so metrics compare models on the same test lenders only. A feature would be dropped if its missing or status share differed by more than 20 pp between denied and approved applications; none was (largest gap \MaxGap{} pp, CLTV). Models are logistic regression and histogram gradient boosting \cite{friedman2001,pedregosa2011}, selected by validation log-loss; ROC-AUC intervals use 100 lender bootstrap resamples.
+
+\begin{table}[t]
+\caption{Test performance on held-out lenders (base rate \BaseTest\%).}
+\label{tab:pred}
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lccrr@{}}
+\toprule
+Model & ROC-AUC (95\% CI) & AP & Log-loss & Brier\\
+\midrule
+Training prior & 0.500 & -- & \PriLL & \PriBr\\
+LR, product only & \LRpAUC{} (\LRpLo--\LRpHi) & \LRpAP & \LRpLL & \LRpBr\\
+LR, no lender profile & \LRnAUC{} (\LRnLo--\LRnHi) & \LRnAP & \LRnLL & \LRnBr\\
+LR full & \LRAUC{} (\LRLo--\LRHi) & \LRAP & \LRLL & \LRBr\\
+GB, no lender profile & \GBnAUC{} (\GBnLo--\GBnHi) & \GBnAP & \GBnLL & \GBnBr\\
+GB full & \GBAUC{} (\GBLo--\GBHi) & \GBAP & \GBLL & \GBBr\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Results and bias checks.} Gradient boosting reaches ROC-AUC \GBAUC{} (Table~\ref{tab:pred}); without lender profiles it reaches \GBnAUC{}, and logistic regression with product only reaches \LRpAUC{}. With 436 test lenders the intervals are wide and those of the full and no-profile boosted models overlap, so we do not claim that lender profiles help despite the rise from \GBnAUC{} to \GBAUC{}. Because CLTV, property value and DTI are missing more often for denied applications, a model could exploit \emph{whether a field was recorded}. As a missingness ablation, we compared gradient boosting without lender profiles trained on complete cases or on the full training set. On the same test subset with CLTV, property value, income and DTI present (\AbShare\% of test rows), AUC is \AbGBcc{} after training on complete cases and \AbGBall{} after training on all training rows. This comparison shows similar AUC on that complete-case test subset only. Permutation importance (Appendix A, Figure~\ref{fig:pred}d) is led by the DTI band (AUC drop \ImpI{}), followed by loan purpose (\ImpII), loan type (\ImpIII) and CLTV (\ImpIV). Lender profiles use the full-year mix and would not exist at intake, so the model is a \emph{retrospective risk ranking}, not an intake-time score or a lending rule.
+
+
+
+%==========================================================
+\begin{table*}[!t]
+\caption{Patterns, evidence, financial meaning and alternative explanations.}
+\label{tab:interp}
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\textwidth}{@{}p{2.3cm}XXX@{}}
+\toprule
+Pattern & Evidence (this study) & Financial meaning & Alternative explanations\\
+\midrule
+Product baseline & Denial runs from \VAPurchDen\% (VA purchase) to \ConvOtherDen\% (conv.\ other); \ConvPurchDen\% for conv.\ purchase & Product mix sets baseline denial risk; compare within product & Selection into products; programme rules\\
+State consistency & \StatesCons{} of \StatesEval{} states with $\rho\ge0.70$; O/E \NDOE{}--\LAOE{} & Product ordering generalises; levels differ by state & Local markets, lender footprints, unrecorded state\\
+Lender dispersion & 5th--95th percentile rates \LenPfive--\LenPninetyfive\%; after mix adjustment, IQR \RawIQR{}$\to$\StdIQR{} pp but SD \RawSD{}$\to$\StdSD{} pp; IQR \SegIQR{} pp in one segment & Mix adjustment narrows the middle half of the distribution, but SD rises slightly and dispersion remains & Applicant quality, risk appetite, channel, no credit score \cite{avery1992}\\
+Finance bands & DTI $V=\Vdti$; denial \DTImid\% (43--$<$50), \DTIhi\% (50--60), \DTIvhi\% ($>$60) & Largest $V$ of six bands; steep above 50\% & DTI recorded only when relied on; no credit score\\
+Pricing & Subordinate lien \rLien{} pp; FHA/VA/RHS \cFHA/\cVA/\cRHS{} pp; adj.\ $R^2$ \QRrII{}; most survive clustering & Lien priority and programme are associated with price & Credit score, points, lock date, lender pricing, selection into origination \cite{ffieclar}\\
+\bottomrule
+\end{tabularx}
+\end{table*}
+
+\section{Financial interpretation and limitations}\label{sec:limits}
+Table~\ref{tab:interp} links patterns to evidence, meaning and rival explanations; all are associations.
+
+
+
+\textbf{Implications.} These are descriptive and are not recommendations. Comparisons between institutions belong within product segments or after standardisation, as in Q2; the remaining dispersion shows that mix alone does not explain lender differences. Missing and exempt fields vary by lender \cite{gao21}, so data-quality review should precede cross-institution comparison.
+
+\textbf{Limitations.} The public LAR contains no credit score, assets, employment or channel, and the regulators themselves state that the data omit legitimate credit-risk considerations \cite{ffiec2019}. Loan amount and property value are rounded \cite{cfpbpolicy}, DTI is banded, one year cannot establish persistence, and partial exemptions remove fields for some lenders \cite{gao21}. Standardisation adjusts only for product segments, and pricing conditions on origination. Duplicate and exempt-value flags are not proof of error. We make no demographic comparison: it would mix applicant composition with unobserved credit and underwriting factors, and the file's several race and ethnicity fields include codes for information not provided or not applicable \cite{ffieclar}, so group definitions would be arbitrary. An unusual lender statistic prompts data-quality review and is never evidence of discrimination or misconduct; the predictive model must not decide individual applications.
+
+\section{Conclusion}
+Denial and origination differ strongly by product, and product-level denial rankings are consistent across \StatesCons{} of \StatesEval{} evaluable jurisdictions. Mix adjustment narrows the lender IQR but leaves dispersion wide. DTI has the largest $V$ among the six banded variables, and price differences are associated with lien and programme, mostly robustly to lender clustering; none of this is causal. The two engines agree on every compared output. In our benchmark the faster engine depends on data volume and on whether file reading is timed.
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{references}
+
+\clearpage
+\onecolumn
+\section*{Appendix A. Predictive Diagnostics}
+\begin{figure}[h]
+\centering
+\includegraphics[width=.95\textwidth]{\figpath/fig6_predictive.pdf}
+\caption{Predictive extension on held-out lenders. (a) ROC curves. (b) Calibration by decile of predicted probability; (a,b) use a sample of 150,000 test applications, so AUCs differ slightly from Table~\ref{tab:pred} (all test rows). (c) Test ROC-AUC with lender-bootstrap 95\% intervals; dashed: training prior. (d) Permutation importance for gradient boosting (drop in test AUC).}
+\label{fig:pred}
+\end{figure}
+
+\end{document}

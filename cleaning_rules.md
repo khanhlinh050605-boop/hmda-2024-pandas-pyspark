@@ -1,0 +1,10 @@
+# Quy tắc làm sạch (Pandas và PySpark phải cho kết quả tương đương)
+
+1. Chỉ đọc các cột trong allow-list của `src/core/schema.py`; `FORBIDDEN_RE` chặn biến nhân khẩu học và biến sau quyết định được nêu trong README.
+2. Trạng thái của biến định lượng được xác định **theo từng field** từ public HMDA 2024/FIG. `income` nhận số hoặc `NA`; vì vậy `1111` và `1111.0` đều là thu nhập hợp lệ 1,111 nghìn USD. Không coi `1111`, `8888` hay `9999` là missing/Exempt trên mọi field. `Exempt` chỉ là trạng thái ở field mà tài liệu cho phép.
+3. Giá trị đã parse được nhưng không dùng được trong phép log/ratio hoặc nằm ngoài miền phân tích cấu hình vẫn được giữ; `v_<field>=0` và band `~OUTSIDE_DOMAIN`. Cờ này không khẳng định dữ liệu báo cáo là sai. Không zero-fill, không tự xoá outlier.
+4. DTI dùng đúng band public HMDA: `<20`, `20-<30`, `30-<36`, `36-<43`, `43-<50`, `50-60`, `>60`. Hai mốc 50 và 60 đều thuộc `50-60`; chỉ giá trị lớn hơn 60 thuộc `>60`. CLTV và DTI là phần trăm. LTI = `loan_amount USD / (income nghìn USD × 1,000)` và chỉ được tính trong miền dương đã cấu hình.
+5. Mẫu số tỷ lệ từ chối là action 1–3; applications là action 1–5; originations là action 1. Interest rate khác rate spread và không đại diện tổng chi phí vay.
+6. Fingerprint lặp dùng mọi cột public không bị cấm. Baseline không xoá dòng. `is_dup=1` cho **tất cả** dòng thuộc nhóm fingerprint có từ hai dòng; metadata ghi riêng `n_dup_rows` (số dòng trong nhóm lặp) và `n_excess_dup_rows` (số bản sao dư so với một dòng mỗi nhóm). Sensitivity `exclude_all_repeated_fingerprint_rows` loại toàn bộ các dòng đó; đây không phải tuyên bố các hồ sơ là sai.
+7. `has_reported_exempt_value=1` nghĩa là record có ít nhất một field thực sự mang trạng thái `Exempt`/mã 1111 ở field categorical cho phép. `lenders_with_exempt_values.csv` chỉ là tập lender có ít nhất một record như vậy; **không** được gọi là danh sách lender được miễn báo cáo.
+8. `sample_u` là khoá xác định từ `part_no` và `row_idx`, tạo mẫu 25%/50%/100% lồng nhau. Synthetic data chỉ dùng kiểm thử; không được đưa số synthetic vào report.

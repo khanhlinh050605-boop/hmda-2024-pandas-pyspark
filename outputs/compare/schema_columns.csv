@@ -1,0 +1,100 @@
+column,parquet_type,role
+activity_year,string,duplicate fingerprint only (never analysed)
+lei,string,analysis input
+derived_msa_md,string,duplicate fingerprint only (never analysed)
+state_code,string,analysis input
+county_code,string,duplicate fingerprint only (never analysed)
+census_tract,string,duplicate fingerprint only (never analysed)
+conforming_loan_limit,string,duplicate fingerprint only (never analysed)
+derived_loan_product_type,string,duplicate fingerprint only (never analysed)
+derived_dwelling_category,string,duplicate fingerprint only (never analysed)
+derived_ethnicity,string,NEVER READ (demographic or post-decision)
+derived_race,string,NEVER READ (demographic or post-decision)
+derived_sex,string,NEVER READ (demographic or post-decision)
+action_taken,string,analysis input
+purchaser_type,string,NEVER READ (demographic or post-decision)
+preapproval,string,duplicate fingerprint only (never analysed)
+loan_type,string,analysis input
+loan_purpose,string,analysis input
+lien_status,string,analysis input
+reverse_mortgage,string,analysis input
+open_end_line_of_credit,string,analysis input
+business_or_commercial_purpose,string,analysis input
+loan_amount,string,analysis input
+combined_loan_to_value_ratio,string,analysis input
+interest_rate,string,analysis input
+rate_spread,string,analysis input
+hoepa_status,string,NEVER READ (demographic or post-decision)
+total_loan_costs,string,analysis input
+total_points_and_fees,string,duplicate fingerprint only (never analysed)
+origination_charges,string,duplicate fingerprint only (never analysed)
+discount_points,string,duplicate fingerprint only (never analysed)
+lender_credits,string,duplicate fingerprint only (never analysed)
+loan_term,string,analysis input
+prepayment_penalty_term,string,duplicate fingerprint only (never analysed)
+intro_rate_period,string,duplicate fingerprint only (never analysed)
+negative_amortization,string,duplicate fingerprint only (never analysed)
+interest_only_payment,string,duplicate fingerprint only (never analysed)
+balloon_payment,string,duplicate fingerprint only (never analysed)
+other_nonamortizing_features,string,duplicate fingerprint only (never analysed)
+property_value,string,analysis input
+construction_method,string,analysis input
+occupancy_type,string,analysis input
+manufactured_home_secured_property_type,string,duplicate fingerprint only (never analysed)
+manufactured_home_land_property_interest,string,duplicate fingerprint only (never analysed)
+total_units,string,analysis input
+multifamily_affordable_units,string,duplicate fingerprint only (never analysed)
+income,string,analysis input
+debt_to_income_ratio,string,analysis input
+applicant_credit_score_type,string,NEVER READ (demographic or post-decision)
+co_applicant_credit_score_type,string,NEVER READ (demographic or post-decision)
+applicant_ethnicity_1,string,NEVER READ (demographic or post-decision)
+applicant_ethnicity_2,string,NEVER READ (demographic or post-decision)
+applicant_ethnicity_3,string,NEVER READ (demographic or post-decision)
+applicant_ethnicity_4,string,NEVER READ (demographic or post-decision)
+applicant_ethnicity_5,string,NEVER READ (demographic or post-decision)
+co_applicant_ethnicity_1,string,NEVER READ (demographic or post-decision)
+co_applicant_ethnicity_2,string,NEVER READ (demographic or post-decision)
+co_applicant_ethnicity_3,string,NEVER READ (demographic or post-decision)
+co_applicant_ethnicity_4,string,NEVER READ (demographic or post-decision)
+co_applicant_ethnicity_5,string,NEVER READ (demographic or post-decision)
+applicant_ethnicity_observed,string,NEVER READ (demographic or post-decision)
+co_applicant_ethnicity_observed,string,NEVER READ (demographic or post-decision)
+applicant_race_1,string,NEVER READ (demographic or post-decision)
+applicant_race_2,string,NEVER READ (demographic or post-decision)
+applicant_race_3,string,NEVER READ (demographic or post-decision)
+applicant_race_4,string,NEVER READ (demographic or post-decision)
+applicant_race_5,string,NEVER READ (demographic or post-decision)
+co_applicant_race_1,string,NEVER READ (demographic or post-decision)
+co_applicant_race_2,string,NEVER READ (demographic or post-decision)
+co_applicant_race_3,string,NEVER READ (demographic or post-decision)
+co_applicant_race_4,string,NEVER READ (demographic or post-decision)
+co_applicant_race_5,string,NEVER READ (demographic or post-decision)
+applicant_race_observed,string,NEVER READ (demographic or post-decision)
+co_applicant_race_observed,string,NEVER READ (demographic or post-decision)
+applicant_sex,string,NEVER READ (demographic or post-decision)
+co_applicant_sex,string,NEVER READ (demographic or post-decision)
+applicant_sex_observed,string,NEVER READ (demographic or post-decision)
+co_applicant_sex_observed,string,NEVER READ (demographic or post-decision)
+applicant_age,string,NEVER READ (demographic or post-decision)
+co_applicant_age,string,NEVER READ (demographic or post-decision)
+applicant_age_above_62,string,NEVER READ (demographic or post-decision)
+co_applicant_age_above_62,string,NEVER READ (demographic or post-decision)
+submission_of_application,string,duplicate fingerprint only (never analysed)
+initially_payable_to_institution,string,duplicate fingerprint only (never analysed)
+aus_1,string,NEVER READ (demographic or post-decision)
+aus_2,string,NEVER READ (demographic or post-decision)
+aus_3,string,NEVER READ (demographic or post-decision)
+aus_4,string,NEVER READ (demographic or post-decision)
+aus_5,string,NEVER READ (demographic or post-decision)
+denial_reason_1,string,NEVER READ (demographic or post-decision)
+denial_reason_2,string,NEVER READ (demographic or post-decision)
+denial_reason_3,string,NEVER READ (demographic or post-decision)
+denial_reason_4,string,NEVER READ (demographic or post-decision)
+tract_population,string,duplicate fingerprint only (never analysed)
+tract_minority_population_percent,string,NEVER READ (demographic or post-decision)
+ffiec_msa_md_median_family_income,string,duplicate fingerprint only (never analysed)
+tract_to_msa_income_percentage,string,duplicate fingerprint only (never analysed)
+tract_owner_occupied_units,string,duplicate fingerprint only (never analysed)
+tract_one_to_four_family_homes,string,duplicate fingerprint only (never analysed)
+tract_median_age_of_housing_units,string,duplicate fingerprint only (never analysed)

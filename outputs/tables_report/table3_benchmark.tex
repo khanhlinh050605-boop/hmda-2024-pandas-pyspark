@@ -1,0 +1,19 @@
+\begin{table}[t]
+\centering
+\caption{Pandas versus PySpark: two aggregation workloads (compute-only, median of repeats)}
+\label{tab:table3_benchmark}
+\small
+\begin{tabular}{lrrrrr}
+\toprule
+Workload & Data size & Pandas (s) & PySpark (s) & Faster method & Speedup (T\_Pandas/T\_Spark) \\
+\midrule
+lender\_groupby & 25\% & 0.186 & 0.366 & Pandas & 0.507 \\
+lender\_groupby & 50\% & 0.349 & 0.408 & Tie / inconclusive & 0.855 \\
+lender\_groupby & 100\% & 0.704 & 0.454 & PySpark & 1.549 \\
+median\_by\_state & 25\% & 0.219 & 0.435 & Pandas & 0.504 \\
+median\_by\_state & 50\% & 0.447 & 0.492 & Tie / inconclusive & 0.908 \\
+median\_by\_state & 100\% & 0.928 & 0.565 & PySpark & 1.644 \\
+\bottomrule
+\end{tabular}
+\par\footnotesize Workloads: lender\_groupby = per-lender count, mean loan amount and denial rate; median\_by\_state = per-state count and exact median loan amount. Speedup = T\_Pandas / T\_Spark; Tie / inconclusive when min-max ranges overlap or either cell is unstable (max/min > 1.5). Results apply to these workloads and this machine only.
+\end{table}

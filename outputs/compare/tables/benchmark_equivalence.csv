@@ -1,0 +1,13 @@
+workload,scenario,fraction,rows,lenders,same_lenders,counts_equal,floats_close
+lender_groupby,compute_only,0.25,3066841,4904,True,True,True
+lender_groupby,compute_only,0.5,6131779,4921,True,True,True
+lender_groupby,compute_only,1,12259199,4926,True,True,True
+lender_groupby,read_compute,0.25,3066841,4904,True,True,True
+lender_groupby,read_compute,0.5,6131779,4921,True,True,True
+lender_groupby,read_compute,1,12259199,4926,True,True,True
+median_by_state,compute_only,0.25,3066841,55,True,True,True
+median_by_state,compute_only,0.5,6131779,55,True,True,True
+median_by_state,compute_only,1,12259199,55,True,True,True
+median_by_state,read_compute,0.25,3066841,55,True,True,True
+median_by_state,read_compute,0.5,6131779,55,True,True,True
+median_by_state,read_compute,1,12259199,55,True,True,True
