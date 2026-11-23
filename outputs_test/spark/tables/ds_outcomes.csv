@@ -1,8 +1,0 @@
-action_taken,n,label,share_of_all_records,in_decided_denominator
-1,61471,Loan originated,0.5097097844112769,1
-2,3242,"Approved, not accepted",0.026882255389718078,1
-3,36575,Application denied,0.30327529021558874,1
-4,7092,Withdrawn by applicant,0.058805970149253733,0
-5,4867,File closed incomplete,0.04035655058043118,0
-6,4950,Purchased loan,0.041044776119402986,0
-7,2403,Preapproval denied,0.019925373134328357,0

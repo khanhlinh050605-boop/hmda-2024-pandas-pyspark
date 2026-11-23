@@ -1,2 +1,0 @@
-state_code,n_rows,n_apps,n_decided,n_denied,n_orig,denial_rate,denial_ci_lo,denial_ci_hi,small_cell,orig_share,orig_ci_lo,orig_ci_hi
-NA,3583,3375,3030,1074,1866,0.35445544554455444,0.33761732472877387,0.37166214423106797,0,0.55288888888888887,0.53606414152386461,0.56959337580889657

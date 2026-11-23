@@ -5,7 +5,7 @@ from pathlib import Path
 ok = True
 def say(flag, msg):
     global ok
-    print(("[OK]   " if flag else "[LỖI] ") + msg)
+    print(("[OK]   " if flag else "[ERROR] ") + msg)
     ok = ok and flag
 
 say(sys.version_info[:2] == (3, 12), f"Python {platform.python_version()} (exactly 3.12 required)")

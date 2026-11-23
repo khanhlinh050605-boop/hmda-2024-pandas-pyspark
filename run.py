@@ -101,7 +101,7 @@ def main(argv=None):
                 traceback.print_exc()
                 man.mark(mod.NAME, h, time.time() - t0, status="failed", note=str(e)[:200])
                 failures.append((sid, t, str(e)))
-                log.info("[%s/%s] LỖI: %s", sid, t, e)
+                log.info("[%s/%s] ERROR: %s", sid, t, e)
                 if sid in ("01",):
                     break
             finally:
@@ -110,7 +110,7 @@ def main(argv=None):
     for e in cache.values():
         e.close()
     if failures:
-        log.info("CÁC BƯỚC LỖI: %s", failures)
+        log.info("FAILED STEPS: %s", failures)
         return 1
     return 0
 
